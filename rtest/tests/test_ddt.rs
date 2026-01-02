@@ -15,9 +15,9 @@ mod my_module {
 mod tests {
     use crate::my_module::User;
     use super::*;
-    const CONFIG_JSON: &str = include_str!("test_data.json");
+    const CONFIG_JSON: &str = include_str!("test_ddt_data.json");
 
-    #[test_case_source("tests/test_data.json", User)]
+    #[test_case_source("tests/test_ddt_data.json", User)]
     fn test_users(user: User) {
         println!("User age: {}", user.age);
         assert!(user.age > 0);
