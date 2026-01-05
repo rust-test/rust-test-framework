@@ -1,9 +1,9 @@
 use rtest::test_case_source;
 
 mod my_module {
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize, Debug)]
     pub struct User {
         pub name: String,
         pub age: u32,
@@ -15,7 +15,6 @@ mod my_module {
 mod tests {
     use crate::my_module::User;
     use super::*;
-    const CONFIG_JSON: &str = include_str!("test_ddt_data.json");
 
     #[test_case_source("tests/test_ddt_data.json", User)]
     fn test_users(user: User) {
