@@ -5,7 +5,7 @@ A data-driven testing framework for Rust.
 ## Features
 
 - **Data-Driven Testing (DDT)**: Run the same test logic with multiple inputs.
-- **Procedural Macros**: Easy to use attributes for defining test cases.
+- **Procedural Macros**: Easy-to-use attributes for defining test cases.
 - **Clean Output**: Clear results for individual test cases.
 
 ## Usage
@@ -16,7 +16,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-rust_test_framework = "0.1.0-alpha.7"
+rust_test_framework = "0.1.1-alpha.1"
 ```
 
 Example usage:
@@ -33,6 +33,7 @@ struct TestCase {
     expected: i32,
 }
 
+// This will generate a test case for each entry in `tests/data.json`
 #[test_case_source(SourceType::JsonFile("tests/data.json", TestCase))]
 fn test_addition(case: TestCase) {
     assert_eq!(case.a + case.b, case.expected);

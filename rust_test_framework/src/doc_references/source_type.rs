@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 /// A source type to generate tests from.
 ///
 /// - `T`: The type to deserialize into. If omitted, the macro attempts to
-/// infer it from function signature.
+/// infer it from the function signature.
 pub enum SourceType<T = ()>
 where
     T: DeserializeOwned
