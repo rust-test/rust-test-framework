@@ -1,50 +1,10 @@
 mod source_type;
 
+pub use crate::attributes::test_case_source::source_type::SourceType;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use serde_json::Value;
-use syn::parse::{Parse, ParseStream};
-use syn::{parse2, ItemFn, LitStr, Path, Token, Type};
-
-/// A source type to generate tests from.
-///
-/// # Variants
-/// - `SourceType::JsonFile(LitStr, Type)` — pass a path to a JSON file and a type to deserialize it into.`
-pub enum SourceType {
-    JsonFile(LitStr, Type),
-}
-
-fn parse_as_json_file(input: ParseStream) -> syn::Result<SourceType> {
-    let content;
-    syn::parenthesized!(content in input);
-
-    let file_path: LitStr = content.parse()?;
-    content.parse::<Token![,]>()?;
-    let type_name: Type = content.parse()?;
-
-    Ok(SourceType::JsonFile(file_path, type_name))
-}
-
-impl Parse for SourceType {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        // Parse the path like `SourceType::JsonFile`
-        let path: Path = input.parse()?;
-
-        // Ensure the last segment is `JsonFile`
-        let variant = path
-            .segments
-            .last()
-            .ok_or_else(|| syn::Error::new_spanned(&path, "Expected a variant"))?
-            .ident
-            .to_string();
-
-        let message = format!("Expected [`SourceType`] variant, got {}", variant);
-        match variant.as_str() {
-            "JsonFile" => parse_as_json_file(input),
-            _ => Err(syn::Error::new_spanned(path, message)),
-        }
-    }
-}
+use syn::{parse2, ItemFn, LitStr, Type};
 
 fn generate_test_set(
     mut input_fn: ItemFn,

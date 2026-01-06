@@ -1,5 +1,7 @@
 use rust_test_core::attributes;
 use proc_macro::TokenStream;
+#[allow(unused_imports)]
+use rust_test_core::attributes::SourceType;
 
 /// Generates tests based on a provided source and model of that data 
 /// (must implement/derive `serde::Deserialize` or be a build-in type).
@@ -12,7 +14,7 @@ use proc_macro::TokenStream;
 ///
 /// use serde::Deserialize;
 ///
-/// #[derive(Deserialize, D)]
+/// #[derive(Deserialize)]
 /// struct User {
 ///     age: u32,
 /// }

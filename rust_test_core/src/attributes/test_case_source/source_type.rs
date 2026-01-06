@@ -2,9 +2,13 @@ use syn::{LitStr, Type, Path, Token};
 use syn::parse::{Parse, ParseStream};
 
 /// A source type to generate tests from.
+///
+/// # Variants
+/// - `SourceType::JsonFile(LitStr, Type)` — pass a path to a JSON file and a type
+/// to deserialize it into.`
 #[allow(dead_code)]
 pub enum SourceType {
-    JsonFile(LitStr, Option<Type>),
+    JsonFile(LitStr, Type),
 }
 
 impl Parse for SourceType {
@@ -43,7 +47,7 @@ impl Parse for SourceType {
                 }
 
                 // Preference: argument type > turbofish type
-                let final_type = arg_type.or(generic_type);
+                let final_type = arg_type.or(generic_type).expect("Expected a type");
 
                 Ok(SourceType::JsonFile(file_path, final_type))
             }
