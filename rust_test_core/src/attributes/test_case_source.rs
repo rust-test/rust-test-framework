@@ -2,7 +2,7 @@ mod source_type;
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-use serde_json::Value;
+use crate::__private::serde_json::Value;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse2, ItemFn, LitStr, Path, Token, Type};
 
