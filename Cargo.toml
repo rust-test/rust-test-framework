@@ -14,6 +14,8 @@ description = "A testing framework for Rust"
 license = "Apache-2.0"
 repository = "https://github.com/example/rust_test"
 readme = "README.md"
+keywords = ["test", "framework", "testing", "ddt"]
+categories = ["development-tools::testing"]
 
 [workspace.dependencies]
 rust_test_core = { path = "rust_test_core", version = "0.1.0-alpha.1" }

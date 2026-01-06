@@ -7,6 +7,8 @@ description = "Core logic for rust_test framework"
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 syn = { version = "2.0", features = ["full"] }
