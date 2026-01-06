@@ -2,8 +2,7 @@ mod source_type;
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-use crate::__private::serde_json;
-use crate::__private::serde_json::Value;
+use serde_json::Value;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse2, ItemFn, LitStr, Path, Token, Type};
 
@@ -65,7 +64,7 @@ fn generate_test_set(
             #[doc = #docstring]
             #[test]
             fn #fn_name() {
-                let data: #type_name = serde_json::from_str(#json_str).unwrap();
+                let data: #type_name = rust_test_framework::__private::serde_json::from_str(#json_str).unwrap();
                 #impl_fn_name(data);
             }
         }
@@ -79,7 +78,7 @@ fn generate_test_set(
                 #[doc = #docstring]
                 #[test]
                 fn #test_fn_name() {
-                    let data: #type_name = serde_json::from_str(#json_str).unwrap();
+                    let data: #type_name = rust_test_framework::__private::serde_json::from_str(#json_str).unwrap();
                     #impl_fn_name(data);
                 }
             }
