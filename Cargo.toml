@@ -1,5 +1,11 @@
 [workspace]
 resolver = "3"
 members = [
-    "rtest",
+    "rust_test",
+    "rust_test_core",
+    "rust_test_proc_macro",
 ]
+
+[workspace.dependencies]
+rust_test_core = { path = "rust_test_core" }
+rust_test_proc_macro = { path = "rust_test_proc_macro" }

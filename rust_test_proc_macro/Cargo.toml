@@ -1,0 +1,13 @@
+[package]
+name = "rust_test_proc_macro"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+rust_test_core = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
