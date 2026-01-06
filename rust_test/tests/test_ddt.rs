@@ -1,16 +1,17 @@
 #[cfg(test)]
 mod tests {
-    use std::any::{type_name, type_name_of_val};
-    use serde::{Deserialize};
     use rust_test::test_case_source;
+    use serde::Deserialize;
+    use std::any::{type_name, type_name_of_val};
 
+    #[allow(dead_code)]
     #[derive(Deserialize)]
     pub struct User {
         pub name: String,
         pub age: u32,
     }
 
-    #[test_case_source(JsonFile("tests/test_ddt_data.json", User))]
+    #[test_case_source(SourceType::JsonFile("tests/test_ddt_data.json", User))]
     fn test_users(user: User) {
         println!("User age: {}", user.age);
         assert!(user.age > 0);
@@ -26,9 +27,11 @@ mod tests {
         assert!(!string.is_empty());
     }
 
-
     #[test_case_source(SourceType::JsonFile("tests/test_generic.json", u32))]
-    fn test_generic<T>(val: T) where T: std::fmt::Debug {
+    fn test_generic<T>(val: T)
+    where
+        T: std::fmt::Debug,
+    {
         let debug_string = format!("{:?}", val);
         println!("{}", debug_string);
         println!("{}", type_name::<T>());

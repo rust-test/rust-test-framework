@@ -2,16 +2,17 @@ use rust_test_core::attributes;
 use proc_macro::TokenStream;
 
 /// Generates tests based on a provided source and model of that data 
-/// (must implement `serde::Deserialize` or be a build-in type).
+/// (must implement/derive `serde::Deserialize` or be a build-in type).
 /// # Arguments
-/// - `source_type`: A [`rust_test::SourceType`] enum value.
+/// - `source_type`: A [`SourceType`] enum value.
 /// # Example
 /// ```rust
 /// use rust_test::test_case_source;
+/// use rust_test::SourceType;
 ///
 /// use serde::Deserialize;
 ///
-/// #[derive(Deserialize)]
+/// #[derive(Deserialize, D)]
 /// struct User {
 ///     age: u32,
 /// }
