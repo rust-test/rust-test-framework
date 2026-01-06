@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use rust_test::test_case_source;
+    use rust_test_framework::test_case_source;
     use serde::Deserialize;
     use std::any::{type_name, type_name_of_val};
 

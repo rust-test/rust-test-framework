@@ -1,5 +1,5 @@
 [package]
-name = "rust_test"
+name = "rust_test_framework"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
