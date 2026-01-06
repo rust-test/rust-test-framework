@@ -16,18 +16,26 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-rust_test_framework = "0.1.0-alpha.1"
+rust_test_framework = "0.1.0-alpha.7"
 ```
 
 Example usage:
 
 ```rust
-use rust_test_framework::test_case;
+use rust_test_framework::test_case_source;
+use rust_test_framework::SourceType;
+use serde::Deserialize;
 
-#[test_case(1, 2, 3)]
-#[test_case(4, 5, 9)]
-fn test_addition(a: i32, b: i32, expected: i32) {
-    assert_eq!(a + b, expected);
+#[derive(Deserialize)]
+struct TestCase {
+    a: i32,
+    b: i32,
+    expected: i32,
+}
+
+#[test_case_source(SourceType::JsonFile("tests/data.json", TestCase))]
+fn test_addition(case: TestCase) {
+    assert_eq!(case.a + case.b, case.expected);
 }
 ```
 
