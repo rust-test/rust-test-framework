@@ -6,6 +6,15 @@ members = [
     "rust_test_proc_macro",
 ]
 
+[workspace.package]
+version = "0.1.0-alpha.1"
+edition = "2024"
+authors = ["Viacheslav Dermichev"]
+description = "A testing framework for Rust"
+license = "Apache-2.0"
+repository = "https://github.com/example/rust_test"
+readme = "README.md"
+
 [workspace.dependencies]
-rust_test_core = { path = "rust_test_core" }
-rust_test_proc_macro = { path = "rust_test_proc_macro" }
+rust_test_core = { path = "rust_test_core", version = "0.1.0-alpha.1" }
+rust_test_proc_macro = { path = "rust_test_proc_macro", version = "0.1.0-alpha.1" }

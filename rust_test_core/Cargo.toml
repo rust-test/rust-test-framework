@@ -1,7 +1,12 @@
 [package]
 name = "rust_test_core"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Core logic for rust_test framework"
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
 
 [dependencies]
 syn = { version = "2.0", features = ["full"] }
