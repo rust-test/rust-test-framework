@@ -1,11 +1,36 @@
 # rust_test
 
-A testing framework for Rust.
+A data-driven testing framework for Rust.
+
+## Features
+
+- **Data-Driven Testing (DDT)**: Run the same test logic with multiple inputs.
+- **Procedural Macros**: Easy to use attributes for defining test cases.
+- **Clean Output**: Clear results for individual test cases.
 
 ## Usage
 
-This project is currently in alpha.
+This project is currently in **alpha**.
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dev-dependencies]
+rust_test = "0.1.0-alpha.1"
+```
+
+Example usage:
 
 ```rust
-// example usage
+use rust_test::test_case;
+
+#[test_case(1, 2, 3)]
+#[test_case(4, 5, 9)]
+fn test_addition(a: i32, b: i32, expected: i32) {
+    assert_eq!(a + b, expected);
+}
 ```
+
+## License
+
+Licensed under the Apache License, Version 2.0.
