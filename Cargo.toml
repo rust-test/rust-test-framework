@@ -7,16 +7,16 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.8"
 edition = "2024"
 authors = ["Viacheslav Dermichev"]
 description = "A testing framework for Rust"
 license = "Apache-2.0"
-repository = "https://github.com/example/rust_test_framework"
+repository = "https://github.com/rust_test/rust_test_framework"
 readme = "README.md"
 keywords = ["test", "framework", "testing", "ddt"]
 categories = ["development-tools::testing"]
 
 [workspace.dependencies]
-rust_test_core = { path = "rust_test_core", version = "0.1.0-alpha.7" }
-rust_test_proc_macro = { path = "rust_test_proc_macro", version = "0.1.0-alpha.7" }
+rust_test_core = { path = "rust_test_core", version = "0.1.0-alpha.8" }
+rust_test_proc_macro = { path = "rust_test_proc_macro", version = "0.1.0-alpha.8" }
