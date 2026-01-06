@@ -26,6 +26,15 @@ use rust_test_core::attributes::SourceType;
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn test_case_source(attr: TokenStream, item: TokenStream) -> TokenStream {
-    attributes::test_case_source(attr.into(), item.into()).into()
+pub fn test_case_source(
+    #[cfg(doc)] source_type: SourceType,
+    #[cfg(not(doc))] attr: TokenStream,
+    #[cfg(not(doc))] item: TokenStream,
+) -> TokenStream {
+    #[cfg(doc)] {
+        unreachable!()
+    }
+    #[cfg(not(doc))] {
+        attributes::test_case_source(attr.into(), item.into()).into()
+    }
 }
