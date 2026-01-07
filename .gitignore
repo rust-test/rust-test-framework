@@ -11,3 +11,4 @@ Cargo.lock
 
 **/mutants.out*/
 /publish.sh
+/codecov
