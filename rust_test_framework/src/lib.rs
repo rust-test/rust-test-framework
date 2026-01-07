@@ -1,4 +1,4 @@
-pub use rust_test_proc_macro::{test_case_source, setup, teardown, test_fixture};
+pub use rust_test_proc_macro::{test_params, test_params_source, setup, teardown, test_fixture};
 pub use rust_test_core::SourceType;
 
 /// Returns the version of the framework.

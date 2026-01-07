@@ -36,8 +36,7 @@ rust_test_framework = "0.1.1-alpha.9"
 Example usage:
 
 ```rust
-use rust_test_framework::test_case_source;
-use rust_test_framework::SourceType;
+use rust_test_framework::{test_params_source, SourceType};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -49,7 +48,7 @@ struct TestCase {
 
 // This will generate a test case for each entry in `tests/data.json` 
 // if it's a list or inject it as a single entry if it's an object.
-#[test_case_source(JsonFile("tests/data.json"))]
+#[test_params_source(JsonFile("tests/data.json"))]
 fn test_addition(case: TestCase) {
     assert_eq!(case.a + case.b, case.expected);
 }

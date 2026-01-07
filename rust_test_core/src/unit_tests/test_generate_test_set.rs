@@ -1,4 +1,4 @@
-use crate::attributes::generate_test_set;
+use crate::attributes::common::generate_test_set;
 use quote::format_ident;
 use serde_json::Value;
 use std::sync::Mutex;
@@ -14,7 +14,7 @@ fn test_generate_test_set_empty_suffix() {
     let fn_name = format_ident!("my_test");
     let type_name: syn::Type = parse_quote! { u32 };
 
-    let result = generate_test_set(input_fn, json_array, fn_name, type_name);
+    let result = generate_test_set(input_fn, json_array, fn_name, Some(type_name));
     assert!(result.is_ok());
     let stream = result.unwrap().to_string();
     assert!(stream.contains("fn my_test__null"));
@@ -37,7 +37,7 @@ fn test_generate_test_set_serialization_error() {
         input_fn.clone(),
         vec![Value::Null],
         fn_name.clone(),
-        type_name.clone(),
+        Some(type_name.clone()),
     );
 
     let is_err = result.is_err();
@@ -49,7 +49,7 @@ fn test_generate_test_set_serialization_error() {
 
     // Case: multiple values
     let result_multi =
-        generate_test_set(input_fn, vec![Value::Null, Value::Null], fn_name, type_name);
+        generate_test_set(input_fn, vec![Value::Null, Value::Null], fn_name, Some(type_name));
     let is_err_multi = result_multi.is_err();
     let err_msg_multi = if is_err_multi {
         result_multi.as_ref().unwrap_err().to_string()

@@ -19,3 +19,5 @@ rust_test_core.workspace = true
 quote.workspace = true
 
 [dev-dependencies]
+thirtyfour.workspace = true
+trybuild.workspace = true

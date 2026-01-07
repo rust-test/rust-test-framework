@@ -1,4 +1,4 @@
-use crate::attributes::value_to_suffix;
+use crate::attributes::common::value_to_suffix;
 use serde_json::Value;
 
 #[test]

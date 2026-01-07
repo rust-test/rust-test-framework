@@ -3,6 +3,27 @@ use rust_test_core::attributes;
 #[allow(unused_imports)]
 use rust_test_core::SourceType as SourceType;
 
+/// Generates tests based on provided inlined parameters.
+/// (must implement/derive `serde::Deserialize` or be a built-in type).
+/// # Example
+/// ```rust
+/// # use rust_test_proc_macro as rust_test_framework;
+/// use rust_test_framework::test_params;
+///
+/// #[test_params(1)]
+/// #[test_params(2)]
+/// #[test_params(3)]
+/// fn test_numbers(item: u32) {
+///     assert!(item > 0);
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn test_params(attr: TokenStream, item: TokenStream) -> TokenStream {
+    attributes::test_params(attr.into(), item.into())
+        .unwrap_or_else(|e| e.into_compile_error())
+        .into()
+}
+
 /// Generates tests based on a provided source and model of that data
 /// (must implement/derive `serde::Deserialize` or be a built-in type).
 /// # Arguments
@@ -11,20 +32,20 @@ use rust_test_core::SourceType as SourceType;
 /// # Example
 /// ```rust
 /// # use rust_test_proc_macro as rust_test_framework;
-/// use rust_test_framework::test_case_source;
+/// use rust_test_framework::test_params_source;
 /// use serde::Deserialize;
 ///
 /// #[derive(Deserialize)]
 /// struct User { age: u32 }
 ///
-/// #[test_case_source(JsonFile("test_data.json"))]
+/// #[test_params_source(JsonFile("test_data.json"))]
 /// fn test_age_is_higher_then_zero(item: User) {
 ///     assert!(item.age > 0);
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn test_case_source(attr: TokenStream, item: TokenStream) -> TokenStream {
-    attributes::test_case_source(attr.into(), item.into())
+pub fn test_params_source(attr: TokenStream, item: TokenStream) -> TokenStream {
+    attributes::test_params_source(attr.into(), item.into())
         .unwrap_or_else(|e| e.into_compile_error())
         .into()
 }
@@ -38,8 +59,7 @@ pub fn test_case_source(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// #[test_fixture]
 /// mod my_tests {
-///     use super::*;
-///
+/// #   use rust_test_proc_macro::setup;
 ///     #[setup]
 ///     fn before_each() {
 ///         // setup logic here
@@ -67,8 +87,7 @@ pub fn setup(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// #[test_fixture]
 /// mod my_tests {
-///     use super::*;
-///
+/// #   use rust_test_proc_macro::teardown;
 ///     #[teardown]
 ///     fn after_each() {
 ///         // teardown logic here
@@ -96,6 +115,7 @@ pub fn teardown(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// #[test_fixture]
 /// mod my_tests {
+/// #   use rust_test_proc_macro::{setup, teardown};
 ///     #[setup]
 ///     fn set_up() {
 ///         println!("Setting up...");

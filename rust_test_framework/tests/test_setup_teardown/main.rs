@@ -1,5 +1,4 @@
-#[allow(unused_imports)]
-use rust_test_framework::{test_fixture, test_case_source, setup, teardown};
+use rust_test_framework::{test_fixture, test_params_source, setup, teardown};
 
 #[test_fixture]
 mod tests {
@@ -30,7 +29,7 @@ mod tests {
         assert!(SETUP_COUNT.load(Ordering::SeqCst) > 0);
     }
 
-    #[test_case_source(JsonFile("tests/test_data/setup_test.json"))]
+    #[test_params_source(JsonFile("tests/test_data/setup_test.json"))]
     fn test_with_source(item: String) {
         assert!(SETUP_COUNT.load(Ordering::SeqCst) > 0);
         assert!(!item.is_empty());
@@ -57,7 +56,7 @@ mod tests_teardown_after_fail {
 
     #[test]
     fn test_check_teardown_ran() {
-        // This test might run before or after test_panics
+        // This test might run before or after test_panics,
         // But we want to check if it ran at least once if test_panics finished.
         // Actually, with parallel execution, this is tricky.
     }

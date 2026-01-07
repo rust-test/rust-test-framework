@@ -36,6 +36,9 @@ fn process_mod(item_mod: &mut ItemMod) -> syn::Result<()> {
     // 1. Find the setup and teardown functions
     let mut setup_fn_name = None;
     let mut teardown_fn_name = None;
+    let mut setup_attr_path = None;
+    let mut teardown_attr_path = None;
+
     for item in items.iter_mut() {
         if let Item::Fn(item_fn) = item {
             if let Some(index) = find_attribute_index(item_fn, "setup") {
@@ -43,6 +46,7 @@ fn process_mod(item_mod: &mut ItemMod) -> syn::Result<()> {
                     return Err(syn::Error::new_spanned(item_fn, "Only one function can be marked with `#[setup]` in a fixture."));
                 }
                 setup_fn_name = Some(item_fn.sig.ident.clone());
+                setup_attr_path = Some(item_fn.attrs[index].path().clone());
                 item_fn.attrs.remove(index);
             }
             if let Some(index) = find_attribute_index(item_fn, "teardown") {
@@ -50,13 +54,28 @@ fn process_mod(item_mod: &mut ItemMod) -> syn::Result<()> {
                     return Err(syn::Error::new_spanned(item_fn, "Only one function can be marked with `#[teardown]` in a fixture."));
                 }
                 teardown_fn_name = Some(item_fn.sig.ident.clone());
+                teardown_attr_path = Some(item_fn.attrs[index].path().clone());
                 item_fn.attrs.remove(index);
             }
         }
     }
 
-    if setup_fn_name.is_none() && teardown_fn_name.is_none() {
+    if setup_attr_path.is_none() && teardown_attr_path.is_none() {
         return Ok(()); // Nothing to do.
+    }
+
+    // Add dummy use statements to force the compiler to check if they are imported.
+    if let Some(path) = setup_attr_path {
+        items.insert(0, Item::Verbatim(quote! {
+            #[allow(unused_imports)]
+            use #path as _;
+        }));
+    }
+    if let Some(path) = teardown_attr_path {
+        items.insert(0, Item::Verbatim(quote! {
+            #[allow(unused_imports)]
+            use #path as _;
+        }));
     }
 
     // 2. Inject calls into tests
@@ -82,8 +101,10 @@ fn is_test(item_fn: &ItemFn) -> bool {
     item_fn.attrs.iter().any(|attr| {
         attr.path().is_ident("test") || 
         attr.path().segments.last().map(|s| s.ident == "test").unwrap_or(false) ||
-        attr.path().is_ident("test_case_source") ||
-        attr.path().segments.last().map(|s| s.ident == "test_case_source").unwrap_or(false)
+        attr.path().is_ident("test_params") ||
+        attr.path().segments.last().map(|s| s.ident == "test_params").unwrap_or(false) ||
+        attr.path().is_ident("test_params_source") ||
+        attr.path().segments.last().map(|s| s.ident == "test_params_source").unwrap_or(false)
     })
 }
 

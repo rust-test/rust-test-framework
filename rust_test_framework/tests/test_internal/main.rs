@@ -1,16 +1,16 @@
 use quote::quote;
-use rust_test_core::test_case_source;
+use rust_test_core::test_params_source;
 use std::sync::Mutex;
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
-fn test_test_case_source_errors() {
+fn test_test_params_source_errors() {
     let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     // Invalid source type
     let attr = quote! { InvalidSource("path") };
     let item = quote! { fn my_test(v: u32) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_err());
     assert!(
         result
@@ -22,31 +22,25 @@ fn test_test_case_source_errors() {
     // No parameters
     let attr = quote! { JsonFile("tests/test_data/test_ddt_data.json") };
     let item = quote! { fn my_test() {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_err());
     assert!(
         result
             .unwrap_err()
             .to_string()
-            .contains("test generation from source supports only 1 type in parameters")
+            .contains("test generation from source requires at least one parameter")
     );
 
-    // Too many parameters
+    // Multiple parameters (now supported)
     let attr = quote! { JsonFile("tests/test_data/test_ddt_data.json") };
     let item = quote! { fn my_test(a: u32, b: u32) {} };
-    let result = test_case_source(attr, item);
-    assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("test generation from source supports only 1 type in parameters")
-    );
+    let result = test_params_source(attr, item);
+    assert!(result.is_ok());
 
     // Non-existent file
     let attr = quote! { JsonFile("non_existent.json") };
     let item = quote! { fn my_test(v: u32) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_err());
     assert!(
         result
@@ -58,13 +52,13 @@ fn test_test_case_source_errors() {
     // With explicit type in attribute
     let attr = quote! { JsonFile("tests/test_data/test_ddt_data.json", User) };
     let item = quote! { fn my_test(v: User) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
 
     // With turbofish
     let attr = quote! { JsonFile::<User>("tests/test_data/test_ddt_data.json") };
     let item = quote! { fn my_test(v: User) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
 }
 
@@ -74,19 +68,18 @@ fn test_more_errors() {
     // Non-typed fn arg (self)
     let item = quote! { fn my_test(self) {} };
     let attr = quote! { JsonFile("tests/test_data/test_ddt_data.json") };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
+    // It should now be OK as it's treated as one argument, but it will fail during expansion if type inference fails.
+    // However, generate_test_set will try to infer it.
+    // Actually, self is a Receiver, not a PatType, so it's ignored in type inference of generate_test_set.
+    // If it's the ONLY argument, it might fail to infer type.
     assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("test generation from source supports only 1 type in parameters")
-    );
+    assert!(result.unwrap_err().to_string().contains("Could not infer type"));
 
     // Non-Path type (e.g. reference or array)
     let item = quote! { fn my_test(v: [u32; 1]) {} };
     let attr = quote! { JsonFile("tests/test_data/test_ddt_data.json") };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok()); // Should still work, just won't be treated as Vec
 }
 
@@ -95,7 +88,7 @@ fn test_invalid_json() {
     let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     let attr = quote! { JsonFile("tests/test_data/invalid.json") };
     let item = quote! { fn my_test(v: u32) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_err());
     assert!(
         result
@@ -111,14 +104,14 @@ fn test_value_variants_coverage() {
     // Null
     let attr = quote! { JsonFile("tests/test_data/test_null.json") };
     let item = quote! { fn my_test(v: Option<u32>) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
     assert!(result.unwrap().to_string().contains("my_test__null"));
 
     // Bool
     let attr = quote! { JsonFile("tests/test_data/test_bool.json") };
     let item = quote! { fn my_test(v: bool) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
     let res_str = result.unwrap().to_string();
     assert!(res_str.contains("my_test__true"));
@@ -127,7 +120,7 @@ fn test_value_variants_coverage() {
     // Single value (not array)
     let attr = quote! { JsonFile("tests/test_data/test_single_bool.json") };
     let item = quote! { fn my_test(v: bool) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
     let res_str = result.unwrap().to_string();
     assert!(res_str.contains("fn my_test__true"));
@@ -139,7 +132,7 @@ fn test_empty_suffix_variants() {
     // Single test case with empty suffix
     let attr = quote! { JsonFile("tests/test_data/test_empty_suffix.json") };
     let item = quote! { fn my_test(v: String) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
     let res_str = result.unwrap().to_string();
     // println!("{}", res_str);
@@ -160,7 +153,7 @@ fn test_source_type_parsing_errors() {
     // Invalid turbofish arguments (multiple)
     let attr =
         quote! { JsonFile::<User, Another>("tests/test_data/test_ddt_data.json") };
-    let result = test_case_source(attr, item.clone());
+    let result = test_params_source(attr, item.clone());
     assert!(result.is_err());
     assert!(
         result
@@ -171,7 +164,7 @@ fn test_source_type_parsing_errors() {
 
     // Empty turbofish
     let attr = quote! { JsonFile::<>("tests/test_data/test_ddt_data.json") };
-    let result = test_case_source(attr, item.clone());
+    let result = test_params_source(attr, item.clone());
     assert!(result.is_err());
     assert!(
         result
@@ -182,7 +175,7 @@ fn test_source_type_parsing_errors() {
 
     // Non-type turbofish argument (const)
     let attr = quote! { JsonFile::<10>("tests/test_data/test_ddt_data.json") };
-    let result = test_case_source(attr, item.clone());
+    let result = test_params_source(attr, item.clone());
     assert!(result.is_err());
     assert!(
         result
@@ -193,7 +186,7 @@ fn test_source_type_parsing_errors() {
 
     // Unknown variant
     let attr = quote! { UnknownVariant("path") };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Unknown variant"));
 }
@@ -204,13 +197,13 @@ fn test_is_vec_cases() {
     // Case: is_vec = true, all_are_arrays = true
     let attr = quote! { JsonFile("tests/test_data/test_vec_of_vec.json") };
     let item = quote! { fn my_test(v: Vec<u32>) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
 
     // Case: is_vec = true, all_are_arrays = false
     let attr = quote! { JsonFile("tests/test_data/test_single_vec.json") };
     let item = quote! { fn my_test(v: Vec<u32>) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
 }
 
@@ -219,7 +212,7 @@ fn test_comprehensive_coverage() {
     let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     let attr = quote! { JsonFile("tests/test_data/test_all_variants.json") };
     let item = quote! { fn my_test(v: serde_json::Value) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
     let res_str = result.unwrap().to_string();
     // {"a": 1.2, "b": [true, "a b"]}
@@ -235,7 +228,7 @@ fn test_single_empty_suffix() {
     let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     let attr = quote! { JsonFile("tests/test_data/test_single_empty.json") };
     let item = quote! { fn my_test(v: String) {} };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_ok());
     let res_str = result.unwrap().to_string();
     assert!(res_str.contains("fn my_test ()"));
@@ -246,7 +239,7 @@ fn test_invalid_function_error() {
     let _lock = ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     let attr = quote! { JsonFile("tests/test_data/test_ddt_data.json") };
     let item = quote! { struct NotAFunction; };
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Expected a function"));
 }
@@ -263,7 +256,7 @@ fn test_cargo_manifest_dir_not_set() {
     unsafe {
         std::env::remove_var("CARGO_MANIFEST_DIR");
     }
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
 
     // Restore
     if let Some(val) = original_manifest_dir {
@@ -292,7 +285,7 @@ fn test_invalid_utf8_path() {
         std::env::set_var("CARGO_MANIFEST_DIR", &invalid_utf8);
     }
 
-    let result = test_case_source(attr, item);
+    let result = test_params_source(attr, item);
 
     // Restore
     if let Some(val) = original_manifest_dir {
