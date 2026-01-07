@@ -1,5 +1,6 @@
 [package]
 name = "rust_test_proc_macro"
+rust-version.workspace = true
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -14,10 +15,10 @@ categories.workspace = true
 proc-macro = true
 
 [dependencies]
-rust_test_core = { workspace = true }
+rust_test_core.workspace = true
 
 [dev-dependencies]
-serde = { workspace = true }
+serde.workspace = true
 
 [features]
 json = []

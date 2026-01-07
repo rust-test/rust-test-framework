@@ -21,11 +21,16 @@ A data-driven testing framework for Rust.
 
 This project is currently in **alpha**.
 
+### Requirements
+
+- **Rust Version**: 1.70.0 or higher
+- **Edition**: 2021
+
 Add this to your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-rust_test_framework = "0.1.1-alpha.8"
+rust_test_framework = "0.1.1-alpha.9"
 ```
 
 Example usage:

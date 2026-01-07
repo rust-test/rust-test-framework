@@ -1,5 +1,6 @@
 [package]
 name = "rust_test_framework"
+rust-version.workspace = true
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,10 +12,10 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
-rust_test_proc_macro = { workspace = true }
-rust_test_core = { workspace = true }
+serde.workspace = true
+serde_json.workspace = true
+rust_test_proc_macro.workspace = true
+rust_test_core.workspace = true
+quote.workspace = true
 
 [dev-dependencies]
-quote = { workspace = true }
