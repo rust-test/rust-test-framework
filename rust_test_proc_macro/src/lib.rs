@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use rust_test_core::attributes;
 #[allow(unused_imports)]
-use rust_test_core::SourceType;
+use rust_test_core::SourceType as SourceType;
 
 /// Generates tests based on a provided source and model of that data
 /// (must implement/derive `serde::Deserialize` or be a build-in type).
@@ -10,19 +10,15 @@ use rust_test_core::SourceType;
 /// can be fully qualified or via just the variant name.
 /// # Example
 /// ```rust
-/// use rust_test::test_case_source;
-/// use rust_test::SourceType;
-///
+/// # use rust_test_proc_macro as rust_test_framework;
+/// use rust_test_framework::test_case_source;
 /// use serde::Deserialize;
 ///
 /// #[derive(Deserialize)]
-/// struct User {
-///     age: u32,
-/// }
+/// struct User { age: u32 }
 ///
-/// #[test_case_source(JsonFile("tests/test_ddt_data.json"))]
+/// #[test_case_source(JsonFile("test_data.json"))]
 /// fn test_age_is_higher_then_zero(item: User) {
-///     // test logic here
 ///     assert!(item.age > 0);
 /// }
 /// ```

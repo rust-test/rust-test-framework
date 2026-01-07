@@ -27,7 +27,7 @@ mod tests {
         assert!(!string.is_empty());
     }
 
-    #[test_case_source(SourceType::JsonFile("tests/test_generic.json", u32))]
+    #[test_case_source(JsonFile::<u32>("tests/test_generic.json"))]
     fn test_generic<T>(val: T)
     where
         T: std::fmt::Debug,

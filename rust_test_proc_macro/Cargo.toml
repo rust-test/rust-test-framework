@@ -17,6 +17,7 @@ proc-macro = true
 rust_test_core = { workspace = true }
 
 [dev-dependencies]
+serde = { version = "1.0", features = ["derive"] }
 
 [features]
 json = []
