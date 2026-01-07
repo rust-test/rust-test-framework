@@ -23,7 +23,8 @@ jobs:
           pkg-config \
           libssl-dev \
           curl \
-          git
+          git \
+          gnupg
         rustup component add llvm-tools-preview
 
     - name: Install cargo-llvm-cov
@@ -46,4 +47,5 @@ jobs:
       with:
         files: lcov.info
         fail_ci_if_error: false
+        slug: rust-test/rust-test-framework
         token: ${{ secrets.CODECOV_TOKEN }}
