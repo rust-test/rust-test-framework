@@ -6,6 +6,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-rust--test%2Frust--test--framework-blue?logo=github)](https://github.com/rust-test/rust-test-framework)
 [![Rust](https://github.com/rust-test/rust-test-framework/actions/workflows/rust.yml/badge.svg)](https://github.com/rust-test/rust-test-framework/actions/workflows/rust.yml)
 [![codecov](https://codecov.io/gh/rust-test/rust-test-framework/branch/main/graph/badge.svg)](https://codecov.io/gh/rust-test/rust-test-framework)
+[![contribute](https://contribute.so/api/badge/github/v-dermichev)](https://contribute.so/github/v-dermichev)
 
 A data-driven testing framework for Rust.
 
