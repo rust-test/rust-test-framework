@@ -25,7 +25,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-rust_test_framework = "0.1.1-alpha.1"
+rust_test_framework = "0.1.1-alpha.8"
 ```
 
 Example usage:
@@ -59,6 +59,8 @@ use rust_test_framework::{test_fixture, setup, teardown};
 
 #[test_fixture]
 mod my_tests {
+    use super::*;
+  
     #[setup]
     fn set_up() {
         // This runs before each test in the module
