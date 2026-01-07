@@ -11,9 +11,9 @@ mod tests {
         pub age: u32,
     }
 
-    #[test_case_source(JsonFile("tests/test_ddt_data.json"))]
-    fn test_users(user: User) {
-        println!("User age: {}", user.age);
+    #[test_case_source(JsonFile::<User>("tests/test_ddt_data.json"))]
+    fn test_users_explicit_type<T: Into<User>>(user: T) {
+        let user: User = user.into();
         assert!(user.age > 0);
     }
 
@@ -33,8 +33,6 @@ mod tests {
         T: std::fmt::Debug,
     {
         let debug_string = format!("{:?}", val);
-        println!("{}", debug_string);
-        println!("{}", type_name::<T>());
         assert!(!debug_string.is_empty());
     }
 

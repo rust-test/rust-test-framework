@@ -6,13 +6,41 @@ use quote::{format_ident, quote};
 use serde_json::Value;
 use syn::{parse2, ItemFn, LitStr, Type};
 
+fn value_to_suffix(value: &Value) -> String {
+    match value {
+        Value::Null => "null".to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.to_string().replace('.', "_"),
+        Value::String(s) => s
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() {
+                    c.to_lowercase().next().unwrap()
+                } else {
+                    '_'
+                }
+            })
+            .collect(),
+        Value::Array(arr) => arr
+            .iter()
+            .map(value_to_suffix)
+            .collect::<Vec<_>>()
+            .join("_"),
+        Value::Object(obj) => obj
+            .values()
+            .map(value_to_suffix)
+            .collect::<Vec<_>>()
+            .join("_"),
+    }
+}
+
 fn generate_test_set(
     mut input_fn: ItemFn,
     json_array: Vec<Value>,
     fn_name: Ident,
     type_name: Type,
 ) -> syn::Result<TokenStream> {
-    let impl_fn_name = format_ident!("{}_impl", fn_name);
+    let impl_fn_name = format_ident!("__{}_impl", fn_name);
     input_fn.sig.ident = impl_fn_name.clone();
 
     let test_functions = if json_array.len() == 1 {
@@ -20,12 +48,21 @@ fn generate_test_set(
         let json_str = serde_json::to_string(value).map_err(|e| {
             syn::Error::new_spanned(&fn_name, format!("Failed to serialize JSON: {}", e))
         })?;
+
+        let suffix = value_to_suffix(value);
+        let test_fn_name = if suffix.is_empty() {
+            fn_name.clone()
+        } else {
+            format_ident!("{}__{}", fn_name, suffix)
+        };
+
         let docstring = format!("Generated test {}", fn_name);
 
         quote! {
             #[doc = #docstring]
             #[test]
-            fn #fn_name() {
+            #[allow(non_snake_case)]
+            fn #test_fn_name() {
                 let data: #type_name = rust_test_framework::__private::serde_json::from_str(#json_str).unwrap();
                 #impl_fn_name(data);
             }
@@ -38,12 +75,20 @@ fn generate_test_set(
                 let json_str = serde_json::to_string(&value).map_err(|e| {
                     syn::Error::new_spanned(&fn_name, format!("Failed to serialize JSON at index {}: {}", i, e))
                 })?;
-                let test_fn_name = format_ident!("{}_{}", fn_name, i);
+                
+                let suffix = value_to_suffix(&value);
+                let test_fn_name = if suffix.is_empty() {
+                    format_ident!("{}_{}", fn_name, i)
+                } else {
+                    format_ident!("{}__{}", fn_name, suffix)
+                };
+
                 let docstring = format!("Generated test {} #{}", fn_name, i);
 
                 Ok(quote! {
                     #[doc = #docstring]
                     #[test]
+                    #[allow(non_snake_case)]
                     fn #test_fn_name() {
                         let data: #type_name = rust_test_framework::__private::serde_json::from_str(#json_str).unwrap();
                         #impl_fn_name(data);
