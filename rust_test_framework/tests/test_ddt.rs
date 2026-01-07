@@ -70,4 +70,9 @@ mod tests {
     fn test_complex(v: serde_json::Value) {
         assert!(v.is_array() || v.is_object());
     }
+
+    #[test]
+    fn test_framework_version() {
+        assert!(!rust_test_framework::version().is_empty());
+    }
 }
