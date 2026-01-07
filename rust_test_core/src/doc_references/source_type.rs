@@ -5,21 +5,21 @@ use serde::de::DeserializeOwned;
 ///
 /// - `T`: The type to deserialize into. If omitted, the macro attempts to
 /// infer it from the function signature.
-pub enum SourceType<T = ()>
-where
-    T: DeserializeOwned
+/// # Variants:
+/// - [`JsonFile::<T>(path)`](SourceType::JsonFile): A path to a JSON file.
+pub enum SourceType<T: DeserializeOwned>
 {
-    /// Pass a path to a JSON file.
-    ///
     /// # Example
-    /// ```
-    /// // Inferred:
+    /// ```rust
+    /// // Type inferred from the function signature:
     /// #[test_case_source(JsonFile("data.json"))]
     /// fn my_test(data: User) { ... }
     ///
-    /// // Explicit:
-    /// #[test_case_source(SourceType::<User>::JsonFile("data.json"))]
+    /// // Type explicitly provided:
+    /// #[test_case_source(JsonFile::<Vec<Users>>("data.json"))]
     /// fn my_test<T: Debug>(data: T) { ... }
     /// ```
-    JsonFile(&'static str, PhantomData<T>),
+    JsonFile(&'static str),
+    #[doc(hidden)]
+    __PrivateMarker(PhantomData<T>)
 }

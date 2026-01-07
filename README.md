@@ -33,8 +33,9 @@ struct TestCase {
     expected: i32,
 }
 
-// This will generate a test case for each entry in `tests/data.json`
-#[test_case_source(SourceType::JsonFile("tests/data.json", TestCase))]
+// This will generate a test case for each entry in `tests/data.json` 
+// if it's a list or inject it as a single entry if it's an object.
+#[test_case_source(JsonFile("tests/data.json"))]
 fn test_addition(case: TestCase) {
     assert_eq!(case.a + case.b, case.expected);
 }

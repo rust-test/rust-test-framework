@@ -1,12 +1,13 @@
-use rust_test_core::attributes;
 use proc_macro::TokenStream;
+use rust_test_core::attributes;
 #[allow(unused_imports)]
-use rust_test_core::attributes::SourceType;
+use rust_test_core::SourceType;
 
-/// Generates tests based on a provided source and model of that data 
+/// Generates tests based on a provided source and model of that data
 /// (must implement/derive `serde::Deserialize` or be a build-in type).
 /// # Arguments
-/// - `source_type`: A [`SourceType`] enum value.
+/// - `source_type`: A [`SourceType`] variant 
+/// can be fully qualified or via just the variant name.
 /// # Example
 /// ```rust
 /// use rust_test::test_case_source;
@@ -19,22 +20,15 @@ use rust_test_core::attributes::SourceType;
 ///     age: u32,
 /// }
 ///
-/// #[test_case_source(SourceType::JsonFile("tests/test_ddt_data.json", User))]
+/// #[test_case_source(JsonFile("tests/test_ddt_data.json"))]
 /// fn test_age_is_higher_then_zero(item: User) {
 ///     // test logic here
 ///     assert!(item.age > 0);
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn test_case_source(
-    #[cfg(doc)] source_type: SourceType,
-    #[cfg(not(doc))] attr: TokenStream,
-    #[cfg(not(doc))] item: TokenStream,
-) -> TokenStream {
-    #[cfg(doc)] {
-        unreachable!()
-    }
-    #[cfg(not(doc))] {
-        attributes::test_case_source(attr.into(), item.into()).into()
-    }
+pub fn test_case_source(attr: TokenStream, item: TokenStream) -> TokenStream {
+    attributes::test_case_source(attr.into(), item.into())
+        .unwrap_or_else(|e| e.into_compile_error())
+        .into()
 }
