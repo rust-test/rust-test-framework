@@ -37,6 +37,13 @@ pub fn setup(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
+pub fn teardown(attr: TokenStream, item: TokenStream) -> TokenStream {
+    attributes::teardown(attr.into(), item.into())
+        .unwrap_or_else(|e| e.into_compile_error())
+        .into()
+}
+
+#[proc_macro_attribute]
 pub fn test_fixture(attr: TokenStream, item: TokenStream) -> TokenStream {
     attributes::test_fixture(attr.into(), item.into())
         .unwrap_or_else(|e| e.into_compile_error())
