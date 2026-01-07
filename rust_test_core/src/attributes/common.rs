@@ -1,7 +1,140 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use serde_json::Value;
-use syn::{ItemFn, Type};
+use syn::{Expr, ItemFn, Lit, Type};
+
+pub fn expr_to_value(expr: &Expr) -> syn::Result<Value> {
+    match expr {
+        Expr::Lit(expr_lit) => lit_to_value(&expr_lit.lit),
+        Expr::Path(expr_path) => {
+            // Treat path as enum unit variant
+            if let Some(segment) = expr_path.path.segments.last() {
+                let name = segment.ident.to_string();
+                if name == "None" && expr_path.path.segments.len() == 1 {
+                    Ok(Value::Null)
+                } else {
+                    Ok(Value::String(name))
+                }
+            } else {
+                Err(syn::Error::new_spanned(expr, "Invalid path"))
+            }
+        }
+        Expr::Call(expr_call) => {
+            let (variant_name, segments_len) = if let Expr::Path(expr_path) = &*expr_call.func {
+                let name = expr_path
+                    .path
+                    .segments
+                    .last()
+                    .map(|s| s.ident.to_string())
+                    .ok_or_else(|| syn::Error::new_spanned(&expr_call.func, "Invalid variant name"))?;
+                (name, expr_path.path.segments.len())
+            } else {
+                return Err(syn::Error::new_spanned(
+                    &expr_call.func,
+                    "Expected a variant name",
+                ));
+            };
+
+            let mut args = Vec::new();
+            for arg in &expr_call.args {
+                args.push(expr_to_value(arg)?);
+            }
+
+            if variant_name == "Some" && segments_len == 1 && args.len() == 1 {
+                return Ok(args[0].clone());
+            }
+
+            Ok(to_tagged_object(variant_name, args))
+        }
+        Expr::Struct(expr_struct) => {
+            let mut fields = serde_json::Map::new();
+            for field in &expr_struct.fields {
+                let field_name = if let syn::Member::Named(ident) = &field.member {
+                    ident.to_string()
+                } else {
+                    return Err(syn::Error::new_spanned(&field.member, "Expected named field"));
+                };
+                fields.insert(field_name, expr_to_value(&field.expr)?);
+            }
+
+            if expr_struct.path.segments.len() > 1 {
+                let variant_name = expr_struct
+                    .path
+                    .segments
+                    .last()
+                    .unwrap()
+                    .ident
+                    .to_string();
+                Ok(to_tagged_object(variant_name, vec![Value::Object(fields)]))
+            } else {
+                // Direct struct initialization
+                Ok(Value::Object(fields))
+            }
+        }
+        Expr::Unary(expr_unary) => {
+            if let syn::UnOp::Neg(_) = expr_unary.op {
+                let val = expr_to_value(&expr_unary.expr)?;
+                match val {
+                    Value::Number(n) => {
+                        if let Some(i) = n.as_i64() {
+                            Ok(Value::Number((-i).into()))
+                        } else if let Some(f) = n.as_f64() {
+                            if let Some(neg_f) = serde_json::Number::from_f64(-f) {
+                                Ok(Value::Number(neg_f))
+                            } else {
+                                Err(syn::Error::new_spanned(expr, "Invalid float after negation"))
+                            }
+                        } else {
+                            Err(syn::Error::new_spanned(expr, "Unsupported number for negation"))
+                        }
+                    }
+                    _ => Err(syn::Error::new_spanned(expr, "Negation only supported for numbers")),
+                }
+            } else {
+                Err(syn::Error::new_spanned(expr, "Unsupported unary operator"))
+            }
+        }
+        _ => Err(syn::Error::new_spanned(
+            expr,
+            "Unsupported expression type. Use literals, enum variants or struct initializers.",
+        )),
+    }
+}
+
+fn to_tagged_object(variant_name: String, args: Vec<Value>) -> Value {
+    let mut map = serde_json::Map::new();
+    if args.len() == 1 {
+        map.insert(variant_name, args[0].clone());
+    } else {
+        map.insert(variant_name, Value::Array(args));
+    }
+    Value::Object(map)
+}
+
+pub fn lit_to_value(lit: &Lit) -> syn::Result<Value> {
+    match lit {
+        Lit::Str(s) => Ok(Value::String(s.value())),
+        Lit::Int(i) => {
+            let n = i.base10_parse::<i64>().map_err(|e| syn::Error::new(i.span(), e))?;
+            Ok(Value::Number(n.into()))
+        }
+        Lit::Float(f) => {
+            let n = f.base10_parse::<f64>().map_err(|e| syn::Error::new(f.span(), e))?;
+            let n = serde_json::Number::from_f64(n)
+                .ok_or_else(|| syn::Error::new(f.span(), "Invalid float"))?;
+            Ok(Value::Number(n))
+        }
+        Lit::Bool(b) => Ok(Value::Bool(b.value)),
+        _ => Err(syn::Error::new_spanned(
+            lit,
+            "Unsupported literal type",
+        )),
+    }
+}
+
+pub fn parse_item_fn(item: TokenStream) -> syn::Result<ItemFn> {
+    syn::parse2(item).map_err(|e| syn::Error::new(e.span(), format!("Expected a function: {}", e)))
+}
 
 pub fn serialize_json(value: &Value) -> serde_json::Result<String> {
     #[cfg(test)]

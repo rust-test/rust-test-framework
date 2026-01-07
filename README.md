@@ -35,6 +35,60 @@ rust_test_framework = "0.1.1-alpha.9"
 
 Example usage:
 
+### Inlined Parameters
+
+Use `#[test_params]` to provide test cases directly in your code. You can stack multiple attributes for multiple test cases.
+
+```rust
+use rust_test_framework::test_params;
+
+#[test_params(1, "one")]
+#[test_params(2, "two")]
+fn test_multiple_params(id: u32, label: &str) {
+    assert!(id > 0);
+    assert!(!label.is_empty());
+}
+```
+
+#### Advanced Types and Rust-style Initialization
+
+`test_params` supports idiomatic Rust syntax for structs, enums, `Option`, and `Result`.
+
+```rust
+use rust_test_framework::test_params;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct Point { x: i32, y: i32 }
+
+#[derive(Deserialize, Debug, PartialEq)]
+enum Kind {
+    Small,
+    Large(u32),
+}
+
+#[test_params(Point { x: 1, y: 2 })]
+fn test_struct(p: Point) {
+    assert_eq!(p.x, 1);
+}
+
+#[test_params(Kind::Small)]
+#[test_params(Kind::Large(100))]
+fn test_enum(kind: Kind) {
+    // ...
+}
+
+#[test_params(Some(42))]
+#[test_params(None)]
+fn test_option(val: Option<u32>) {
+    // ...
+}
+```
+
+### External Data Sources
+
+Use `#[test_params_source]` to load test cases from external files.
+
 ```rust
 use rust_test_framework::{test_params_source, SourceType};
 use serde::Deserialize;
@@ -51,6 +105,13 @@ struct TestCase {
 #[test_params_source(JsonFile("tests/data.json"))]
 fn test_addition(case: TestCase) {
     assert_eq!(case.a + case.b, case.expected);
+}
+
+// You can also use multiple parameters with external sources.
+// Each entry in the JSON array should then be an array of values.
+#[test_params_source(JsonFile("tests/multi_params.json"))]
+fn test_multi(id: u32, name: String) {
+    assert!(id > 0);
 }
 ```
 

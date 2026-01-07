@@ -1,11 +1,11 @@
 mod source_type;
 
 pub use crate::attributes::test_params_source::source_type::SourceType;
-use crate::attributes::common::generate_test_set;
+use crate::attributes::common::{generate_test_set, parse_item_fn};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use serde_json::Value;
-use syn::{parse2, ItemFn, LitStr, Type};
+use syn::{parse2, LitStr, Type};
 
 pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     let source: SourceType = parse2(attr).map_err(|e| {
@@ -14,8 +14,7 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
             format!("Expected [`rust_test::SourceType`] variant: {}", e),
         )
     })?;
-    let input_fn: ItemFn =
-        parse2(item).map_err(|e| syn::Error::new(e.span(), format!("Expected a function: {}", e)))?;
+    let input_fn = parse_item_fn(item)?;
     let fn_name = input_fn.sig.ident.clone();
 
     // 1. Extract parameter type from function if not provided in attribute
