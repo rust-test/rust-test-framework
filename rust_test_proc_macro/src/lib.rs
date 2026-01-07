@@ -4,7 +4,7 @@ use rust_test_core::attributes;
 use rust_test_core::SourceType as SourceType;
 
 /// Generates tests based on a provided source and model of that data
-/// (must implement/derive `serde::Deserialize` or be a build-in type).
+/// (must implement/derive `serde::Deserialize` or be a built-in type).
 /// # Arguments
 /// - `source_type`: A [`SourceType`] variant 
 /// can be fully qualified or via just the variant name.

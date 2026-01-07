@@ -1,5 +1,9 @@
 # rust_test_framework
 
+[![Crates.io](https://img.shields.io/crates/v/rust_test_framework.svg)](https://crates.io/crates/rust_test_framework)
+[![Docs.rs](https://docs.rs/rust_test_framework/badge.svg)](https://docs.rs/rust_test_framework)
+[![GitHub](https://img.shields.io/github/license/rust-test/rust-test-framework)](https://github.com/rust-test/rust-test-framework/blob/main/LICENSE)
+
 A data-driven testing framework for Rust.
 
 ## Features
