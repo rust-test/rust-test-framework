@@ -12,7 +12,8 @@ A data-driven testing framework for Rust.
 ## Features
 
 - **Data-Driven Testing (DDT)**: Run the same test logic with multiple inputs.
-- **Procedural Macros**: Easy-to-use attributes for defining test cases.
+- **Test Fixtures**: Support for `setup` and `teardown` functions within a test module.
+- **Procedural Macros**: Easy-to-use attributes for defining test cases and fixtures.
 - **Clean Output**: Clear results for individual test cases.
 
 ## Usage
@@ -45,6 +46,34 @@ struct TestCase {
 #[test_case_source(JsonFile("tests/data.json"))]
 fn test_addition(case: TestCase) {
     assert_eq!(case.a + case.b, case.expected);
+}
+```
+
+### Test Fixtures
+
+Use `#[test_fixture]` on a module to enable `#[setup]` and `#[teardown]` functions.
+
+```rust
+use rust_test_framework::{test_fixture, setup, teardown};
+
+#[test_fixture]
+mod my_tests {
+    #[setup]
+    fn set_up() {
+        // This runs before each test in the module
+        println!("Setting up...");
+    }
+
+    #[teardown]
+    fn tear_down() {
+        // This runs after each test in the module
+        println!("Tearing down...");
+    }
+
+    #[test]
+    fn test_example() {
+        assert!(true);
+    }
 }
 ```
 

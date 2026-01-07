@@ -29,6 +29,28 @@ pub fn test_case_source(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Marks a function as a setup function to be run before each test in a `#[test_fixture]`.
+///
+/// # Example
+/// ```rust
+/// # use rust_test_proc_macro as rust_test_framework;
+/// use rust_test_framework::{test_fixture, setup};
+///
+/// #[test_fixture]
+/// mod my_tests {
+///     use super::*;
+///
+///     #[setup]
+///     fn before_each() {
+///         // setup logic here
+///     }
+///
+///     #[test]
+///     fn some_test() {
+///         // ...
+///     }
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn setup(attr: TokenStream, item: TokenStream) -> TokenStream {
     attributes::setup(attr.into(), item.into())
@@ -36,6 +58,28 @@ pub fn setup(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Marks a function as a teardown function to be run after each test in a `#[test_fixture]`.
+///
+/// # Example
+/// ```rust
+/// # use rust_test_proc_macro as rust_test_framework;
+/// use rust_test_framework::{test_fixture, teardown};
+///
+/// #[test_fixture]
+/// mod my_tests {
+///     use super::*;
+///
+///     #[teardown]
+///     fn after_each() {
+///         // teardown logic here
+///     }
+///
+///     #[test]
+///     fn some_test() {
+///         // ...
+///     }
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn teardown(attr: TokenStream, item: TokenStream) -> TokenStream {
     attributes::teardown(attr.into(), item.into())
@@ -43,6 +87,31 @@ pub fn teardown(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Marks a module as a test fixture, enabling `#[setup]` and `#[teardown]` functionality.
+///
+/// # Example
+/// ```rust
+/// # use rust_test_proc_macro as rust_test_framework;
+/// use rust_test_framework::{test_fixture, setup, teardown};
+///
+/// #[test_fixture]
+/// mod my_tests {
+///     #[setup]
+///     fn set_up() {
+///         println!("Setting up...");
+///     }
+///
+///     #[teardown]
+///     fn tear_down() {
+///         println!("Tearing down...");
+///     }
+///
+///     #[test]
+///     fn test_example() {
+///         assert!(true);
+///     }
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn test_fixture(attr: TokenStream, item: TokenStream) -> TokenStream {
     attributes::test_fixture(attr.into(), item.into())

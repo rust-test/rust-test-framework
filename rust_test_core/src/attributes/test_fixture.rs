@@ -12,19 +12,19 @@ pub fn test_fixture(_attr: TokenStream, item: TokenStream) -> syn::Result<TokenS
 }
 
 pub fn setup(_attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
-    if let Ok(input_fn) = parse2::<ItemFn>(item.clone()) {
-        return Ok(quote!(#input_fn));
-    }
-
-    Err(syn::Error::new_spanned(item, "The `#[setup]` attribute can only be applied to a function within a `#[test_fixture]`."))
+    let input_fn = parse2::<ItemFn>(item)?;
+    Ok(quote! {
+        compile_error!("The `#[setup]` attribute can only be applied to a function within a `#[test_fixture]` annotated module.");
+        #input_fn
+    })
 }
 
 pub fn teardown(_attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
-    if let Ok(input_fn) = parse2::<ItemFn>(item.clone()) {
-        return Ok(quote!(#input_fn));
-    }
-
-    Err(syn::Error::new_spanned(item, "The `#[teardown]` attribute can only be applied to a function within a `#[test_fixture]`."))
+    let input_fn = parse2::<ItemFn>(item)?;
+    Ok(quote! {
+        compile_error!("The `#[teardown]` attribute can only be applied to a function within a `#[test_fixture]` annotated module.");
+        #input_fn
+    })
 }
 
 fn process_mod(item_mod: &mut ItemMod) -> syn::Result<()> {
@@ -38,17 +38,19 @@ fn process_mod(item_mod: &mut ItemMod) -> syn::Result<()> {
     let mut teardown_fn_name = None;
     for item in items.iter_mut() {
         if let Item::Fn(item_fn) = item {
-            if has_attribute(item_fn, "setup") {
+            if let Some(index) = find_attribute_index(item_fn, "setup") {
                 if setup_fn_name.is_some() {
                     return Err(syn::Error::new_spanned(item_fn, "Only one function can be marked with `#[setup]` in a fixture."));
                 }
                 setup_fn_name = Some(item_fn.sig.ident.clone());
+                item_fn.attrs.remove(index);
             }
-            if has_attribute(item_fn, "teardown") {
+            if let Some(index) = find_attribute_index(item_fn, "teardown") {
                 if teardown_fn_name.is_some() {
                     return Err(syn::Error::new_spanned(item_fn, "Only one function can be marked with `#[teardown]` in a fixture."));
                 }
                 teardown_fn_name = Some(item_fn.sig.ident.clone());
+                item_fn.attrs.remove(index);
             }
         }
     }
@@ -69,8 +71,8 @@ fn process_mod(item_mod: &mut ItemMod) -> syn::Result<()> {
     Ok(())
 }
 
-fn has_attribute(item_fn: &ItemFn, attr_name: &str) -> bool {
-    item_fn.attrs.iter().any(|attr| {
+fn find_attribute_index(item_fn: &ItemFn, attr_name: &str) -> Option<usize> {
+    item_fn.attrs.iter().position(|attr| {
         attr.path().is_ident(attr_name) || 
         attr.path().segments.last().map(|s| s.ident == attr_name).unwrap_or(false)
     })
