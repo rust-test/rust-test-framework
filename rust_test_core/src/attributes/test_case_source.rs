@@ -167,7 +167,7 @@ pub fn test_case_source(attr: TokenStream, item: TokenStream) -> syn::Result<Tok
     })?;
 
     let is_vec = if let Type::Path(type_path) = &type_name {
-        type_path.path.segments.last().map(|s| s.ident == "Vec").unwrap_or(false)
+        type_path.path.segments.last().map(|s| s.ident.to_string() == "Vec").unwrap_or(false)
     } else {
         false
     };

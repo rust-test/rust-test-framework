@@ -20,9 +20,17 @@ impl Parse for SourceType {
         let mut generic_type: Option<Type> = None;
         for segment in &path.segments {
             if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                if args.args.is_empty() {
+                    return Err(syn::Error::new_spanned(args, "Expected exactly one type argument in turbofish"));
+                }
+                if args.args.len() > 1 {
+                    return Err(syn::Error::new_spanned(args, "Expected exactly one type argument in turbofish"));
+                }
                 if let Some(syn::GenericArgument::Type(ty)) = args.args.first() {
                     generic_type = Some(ty.clone());
                     break;
+                } else {
+                    return Err(syn::Error::new_spanned(args, "Expected a type argument in turbofish"));
                 }
             }
         }

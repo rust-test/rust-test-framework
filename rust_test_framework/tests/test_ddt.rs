@@ -50,4 +50,24 @@ mod tests {
     fn test_single_vec(v: Vec<u32>) {
         assert!(!v.is_empty());
     }
+
+    #[test_case_source(JsonFile("tests/test_null.json"))]
+    fn test_null(v: Option<u32>) {
+        assert!(v.is_none());
+    }
+
+    #[test_case_source(JsonFile("tests/test_bool.json"))]
+    fn test_bool(v: bool) {
+        assert!(v.eq(&true) || v.eq(&false))
+    }
+
+    #[test_case_source(JsonFile("tests/test_empty_suffix.json"))]
+    fn test_empty_suffix(v: String) {
+        assert!(v.trim().is_empty() || v == "!!");
+    }
+
+    #[test_case_source(JsonFile("tests/test_complex.json"))]
+    fn test_complex(v: serde_json::Value) {
+        assert!(v.is_array() || v.is_object());
+    }
 }
