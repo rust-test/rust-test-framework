@@ -13,4 +13,3 @@ Cargo.lock
 /publish.sh
 /codecov
 /coverage*.*
-*.stderr
