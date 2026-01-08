@@ -1,7 +1,7 @@
 mod source_type;
 
 pub use crate::attributes::test_params_source::source_type::SourceType;
-use crate::attributes::common::{generate_test_set, parse_item_fn, ValueWithSpan, is_path_type};
+use crate::attributes::common::{generate_test_set, parse_item_fn, ValueWithSpan, is_path_type, check_json_compatibility};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use serde_json::Value;
@@ -25,6 +25,14 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
     let source_span = source.span();
     let input_fn = parse_item_fn(item)?;
     let fn_name = input_fn.sig.ident.clone();
+
+    let mut type_name = None;
+    if input_fn.sig.inputs.len() == 1 {
+        if let Some(syn::FnArg::Typed(pat_type)) = input_fn.sig.inputs.first() {
+            type_name = Some((*pat_type.ty).clone());
+        }
+    }
+    let type_name_opt = type_name;
 
     // 1. Extract parameter type from function if not provided in attribute
     let (json_content, mut type_name, file_info): (String, Option<Type>, Option<(LitStr, String)>) = match source {
@@ -98,17 +106,37 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
                 ));
             }
 
-            let paths: Vec<Value> = matches
+            let paths: Vec<ValueWithSpan> = matches
                 .into_iter()
                 .filter_map(|p| {
-                    p.strip_prefix(&manifest_dir)
-                        .ok()
-                        .and_then(|p| p.to_str())
-                        .map(|s| Value::String(s.to_string()))
+                    let relative_path = p.strip_prefix(&manifest_dir).ok()?;
+                    let path_str = relative_path.to_str()?.to_string();
+                    let path_suffix = path_str
+                        .chars()
+                        .map(|c| {
+                            if c.is_alphanumeric() {
+                                c.to_lowercase().next().unwrap()
+                            } else {
+                                '_'
+                            }
+                        })
+                        .collect::<String>();
+                    
+                    Some(ValueWithSpan {
+                        value: Value::String(path_str),
+                        span: mask.span(),
+                        suffix: Some(format!("pm_{}", path_suffix)),
+                    })
                 })
                 .collect();
 
-            (serde_json::to_string(&paths).unwrap(), None, None)
+            let tests_stream = generate_test_set(
+                input_fn,
+                paths,
+                fn_name.clone(),
+                type_name_opt,
+            )?;
+            return Ok(tests_stream);
         }
     };
 
@@ -160,6 +188,9 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
             if is_vec {
                 let all_are_arrays = array.iter().all(|v| v.is_array());
                 if all_are_arrays {
+                    for v in &array {
+                        check_json_compatibility(&input_fn, v, source_span)?;
+                    }
                     generate_test_set(
                         input_fn,
                         array
@@ -174,11 +205,13 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
                         type_name_opt,
                     )?
                 } else {
+                    let val = Value::Array(array);
+                    check_json_compatibility(&input_fn, &val, source_span)?;
                     // Treat the whole array as a single test case (single list)
                     generate_test_set(
                         input_fn,
                         vec![ValueWithSpan {
-                            value: Value::Array(array),
+                            value: val,
                             span: source_span,
                             suffix: None,
                         }],
@@ -187,6 +220,9 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
                     )?
                 }
             } else {
+                for v in &array {
+                    check_json_compatibility(&input_fn, v, source_span)?;
+                }
                 generate_test_set(
                     input_fn,
                     array
@@ -203,6 +239,7 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
             }
         }
         Ok(single_value) => {
+            check_json_compatibility(&input_fn, &single_value, source_span)?;
             if is_vec {
                 return Err(syn::Error::new(
                     source_span,

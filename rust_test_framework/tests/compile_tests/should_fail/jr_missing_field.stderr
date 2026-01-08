@@ -1,0 +1,11 @@
+error: JSON object is missing required field `username`
+  --> tests/compile_tests/should_fail/jr_missing_field.rs:9:22
+   |
+9  | #[test_params_source(JsonResponse("https://jsonplaceholder.typicode.com/posts/1"))]
+   |                      ^^^^^^^^^^^^
+
+error: Required by this parameter
+  --> tests/compile_tests/should_fail/jr_missing_field.rs:10:42
+   |
+10 | fn test_json_response_with_missing_field(user: User) {
+   |                                          ^^^^

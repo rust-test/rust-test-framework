@@ -12,7 +12,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-syn.workspace = true
+syn = { workspace = true, features = ["full", "visit"] }
 quote.workspace = true
 serde.workspace = true
 serde_json.workspace = true

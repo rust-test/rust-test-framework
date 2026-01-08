@@ -32,8 +32,8 @@ fn test_test_params_source_errors() {
     );
 
     // Multiple parameters (now supported)
-    let attr = quote! { JsonFile("tests/test_data/test_ddt_data.json") };
-    let item = quote! { fn my_test(a: u32, b: u32) {} };
+    let attr = quote! { JsonFile("tests/test_data/test_vec_of_vec.json") };
+    let item = quote! { fn my_test(a: Vec<u32>) {} };
     let result = test_params_source(attr, item);
     assert!(result.is_ok());
 

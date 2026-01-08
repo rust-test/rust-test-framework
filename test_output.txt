@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/compile_tests.rs (target/debug/deps/compile_tests-4c21ef4631e1694c)
+
+running 1 test
+test should_fail::ui_should_compile_fail__tests_compile_tests_should_fail_json_response_json_with_missing_field_rs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+

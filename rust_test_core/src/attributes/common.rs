@@ -3,7 +3,165 @@ use quote::{format_ident, quote};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use syn::spanned::Spanned;
-use syn::{Expr, ItemFn, Lit, Type, LitStr};
+use syn::{Expr, ItemFn, Lit, Type, LitStr, Member, Pat};
+
+pub fn check_json_compatibility(
+    input_fn: &ItemFn,
+    value: &Value,
+    value_span: Span,
+) -> syn::Result<()> {
+    if input_fn.sig.inputs.len() == 1 {
+        if let Some(syn::FnArg::Typed(pat_type)) = input_fn.sig.inputs.first() {
+            validate_type_match(&pat_type.ty, value, value_span)?;
+
+            let mut param_names = Vec::new();
+            let mut accessed_fields = Vec::new();
+
+            match &*pat_type.pat {
+                Pat::Ident(pat_ident) => {
+                    param_names.push(pat_ident.ident.to_string());
+                }
+                Pat::Struct(pat_struct) => {
+                    for field in &pat_struct.fields {
+                        if let Member::Named(ident) = &field.member {
+                            accessed_fields.push(ident.to_string());
+                        }
+                    }
+                }
+                _ => {}
+            }
+
+            // Token-stream based field extraction to look inside macros
+            use quote::ToTokens;
+            let tokens = input_fn.to_token_stream();
+
+            let mut is_serde_value = false;
+            if let Type::Path(tp) = &*pat_type.ty {
+                if let Some(segment) = tp.path.segments.last() {
+                    if segment.ident == "Value" {
+                        is_serde_value = true;
+                    }
+                }
+            }
+
+            if !is_serde_value {
+                extract_fields_from_tokens(tokens, &param_names, &mut accessed_fields);
+            }
+
+            if let Value::Object(obj) = value {
+                for field in accessed_fields {
+                    if !obj.contains_key(&field) {
+                        let mut err = syn::Error::new(value_span, format!("JSON object is missing required field `{}`", field));
+                        err.combine(syn::Error::new(pat_type.span(), "Required by this parameter"));
+                        return Err(err);
+                    }
+                }
+            }
+        }
+    } else if input_fn.sig.inputs.len() > 1 {
+        // Tuple case
+        if let Value::Array(arr) = value {
+            if arr.len() != input_fn.sig.inputs.len() {
+                return Err(syn::Error::new(value_span, format!("Expected JSON array of length {}, but got length {}", input_fn.sig.inputs.len(), arr.len())));
+            }
+            for (arg, v) in input_fn.sig.inputs.iter().zip(arr.iter()) {
+                if let syn::FnArg::Typed(pat_type) = arg {
+                    validate_type_match(&pat_type.ty, v, value_span)?;
+                }
+            }
+        } else {
+             // If we have multiple params but value is not an array, it's definitely a mismatch
+             return Err(syn::Error::new(value_span, format!("Expected JSON array for multiple parameters, but got: {}", value)));
+        }
+    }
+    Ok(())
+}
+
+fn validate_type_match(ty: &Type, value: &Value, span: Span) -> syn::Result<()> {
+    match ty {
+        Type::Path(tp) => {
+            if let Some(segment) = tp.path.segments.last() {
+                let name = segment.ident.to_string();
+                match name.as_str() {
+                    "u32" | "i32" | "u64" | "i64" | "usize" | "isize" | "u8" | "i8" | "u16" | "i16" => {
+                        if !value.is_number() {
+                            return Err(syn::Error::new(span, format!("Expected number for type {}, but got: {}", name, value)));
+                        }
+                    }
+                    "f32" | "f64" => {
+                        if !value.is_number() {
+                            return Err(syn::Error::new(span, format!("Expected float for type {}, but got: {}", name, value)));
+                        }
+                    }
+                    "String" => {
+                        if !value.is_string() {
+                            return Err(syn::Error::new(span, format!("Expected string for type String, but got: {}", value)));
+                        }
+                    }
+                    "bool" => {
+                        if !value.is_boolean() {
+                            return Err(syn::Error::new(span, format!("Expected boolean for type bool, but got: {}", value)));
+                        }
+                    }
+                    "Vec" => {
+                        if !value.is_array() {
+                             return Err(syn::Error::new(span, format!("Expected JSON array for Vec type, but got: {}", value)));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Type::Reference(tr) => {
+            if let Type::Path(tp) = &*tr.elem {
+                if let Some(segment) = tp.path.segments.last() {
+                    if segment.ident == "str" {
+                        if !value.is_string() {
+                            return Err(syn::Error::new(span, format!("Expected string for type &str, but got: {}", value)));
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn extract_fields_from_tokens(tokens: proc_macro2::TokenStream, param_names: &[String], accessed_fields: &mut Vec<String>) {
+    let mut iter = tokens.into_iter().peekable();
+    while let Some(token) = iter.next() {
+        match token {
+            proc_macro2::TokenTree::Ident(ident) => {
+                let ident_str = ident.to_string();
+                if param_names.contains(&ident_str) {
+                    // Check for .field access
+                    if let Some(proc_macro2::TokenTree::Punct(punct)) = iter.peek() {
+                        if punct.as_char() == '.' {
+                            iter.next(); // consume .
+                            if let Some(proc_macro2::TokenTree::Ident(field_ident)) = iter.next() {
+                                // Check if it's a method call by looking at the next token
+                                let is_method_call = if let Some(proc_macro2::TokenTree::Group(group)) = iter.peek() {
+                                    group.delimiter() == proc_macro2::Delimiter::Parenthesis
+                                } else {
+                                    false
+                                };
+
+                                if !is_method_call {
+                                    accessed_fields.push(field_ident.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            proc_macro2::TokenTree::Group(group) => {
+                extract_fields_from_tokens(group.stream(), param_names, accessed_fields);
+            }
+            _ => {}
+        }
+    }
+}
 
 pub(crate) fn is_path_type(ty: &Type) -> bool {
     let check_path = |path: &syn::Path| {
@@ -26,7 +184,7 @@ pub(crate) fn is_path_type(ty: &Type) -> bool {
     }
 }
 
-fn resolve_path(path_str: &str) -> Option<PathBuf> {
+pub fn resolve_path(path_str: &str) -> Option<PathBuf> {
     let path = Path::new(path_str);
     if path.exists() {
         return Some(path.to_path_buf());

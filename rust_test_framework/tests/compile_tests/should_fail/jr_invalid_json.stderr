@@ -1,5 +1,5 @@
 error: Could not parse JSON: expected value at line 1 column 1
-  --> tests/compile_tests/should_fail/json_response_invalid_json.rs:11:22
+  --> tests/compile_tests/should_fail/jr_invalid_json.rs:11:22
    |
 11 | #[test_params_source(JsonResponse("https://www.google.com"))]
    |                      ^^^^^^^^^^^^

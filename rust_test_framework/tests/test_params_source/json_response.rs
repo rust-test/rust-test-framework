@@ -13,8 +13,9 @@ fn test_json_response_single_object(post: Post) {
     assert!(!post.title.is_empty());
 }
 
-#[test_params_source(JsonResponse("https://jsonplaceholder.typicode.com/posts"))]
-fn test_json_response_list(post: Post) {
+
+#[test_params_source(JsonResponse("https://jsonplaceholder.typicode.com/posts?_limit=3"))]
+fn test_json_response_list_as_multiple_tests(post: Post) {
     assert!(!post.title.is_empty());
 }
 
