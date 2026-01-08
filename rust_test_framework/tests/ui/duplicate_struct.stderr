@@ -1,0 +1,5 @@
+error: Duplicate test case value found
+  --> tests/ui/duplicate_struct.rs:10:15
+   |
+10 | #[test_params(MyStruct { x: 1 })]
+   |               ^^^^^^^^

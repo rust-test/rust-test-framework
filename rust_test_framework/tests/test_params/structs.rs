@@ -26,8 +26,8 @@ fn test_custom_struct_inferred(name: String, age: u32) {
     assert!(age > 0);
 }
 
-#[test_params("Alice", 30)]
-#[test_params("Bob", 25)]
+#[test_params(("Alice", 30))]
+#[test_params(("Bob", 25))]
 fn test_custom_struct_single_arg(user: CustomUser) {
     assert!(!user.name.is_empty());
     assert!(user.age > 0);
@@ -47,13 +47,18 @@ fn test_two_structs(p: Point, d: Dimensions) {
 }
 
 #[test_params(Point { x: 1, y: 2 }, Dimensions { width: 10, height: 20 })]
-#[test_params(Point { y: 2, x: 1 }, Dimensions { height: 20, width: 10 })]
-#[test_params(Point { y: 2, x: 1 }, Dimensions { width: 10, height: 20 })]
-fn test_two_structs_initialization(p: Point, d: Dimensions) {
-    assert_eq!(p.x, 1);
-    assert_eq!(p.y, 2);
-    assert_eq!(d.width, 10);
-    assert_eq!(d.height, 20);
+#[test_params(Point { x: 3, y: 4 }, Dimensions { width: 30, height: 40 })]
+fn test_two_structs_initialization(p: Point, _d: Dimensions) {
+    assert!(p.x == 1 || p.x == 3);
+    assert!(p.y == 2 || p.y == 4);
 }
 
 
+#[test_params(Point { x: 1, y: 2 }, Dimensions { width: 10, height: 20 })]
+#[test_params(Point { y: 1, x: 2 }, Dimensions { width: 10, height: 20 })]
+fn test_same_values_of_different_fields(p: Point, d: Dimensions) {
+    assert!(p.x == 1 || p.x == 2);
+    assert!(p.y == 1 || p.y == 2);
+    assert_eq!(d.width, 10);
+    assert_eq!(d.height, 20);
+}

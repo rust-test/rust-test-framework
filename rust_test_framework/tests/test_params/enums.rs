@@ -28,6 +28,10 @@ fn test_enum_tuple(val: TestEnum) {
 }
 
 #[test_params(TestEnum::D { x: 1, y: 2 })]
+#[test_params(TestEnum::D { x: 3, y: 4 })]
 fn test_enum_struct(val: TestEnum) {
-    assert_eq!(val, TestEnum::D { x: 1, y: 2 });
+    match val {
+        TestEnum::D { x, y } => assert!((x == 1 && y == 2) || (x == 3 && y == 4)),
+        _ => panic!("Expected TestEnum::D"),
+    }
 }

@@ -1,20 +1,33 @@
 use syn::{LitStr, Type, Path, Token};
 use syn::parse::{Parse, ParseStream};
+use proc_macro2::Span;
+use syn::spanned::Spanned;
 
 /// A source type to generate tests from.
 ///
 /// # Variants
-/// - `SourceType::JsonFile(LitStr, Type)` — pass a path to a JSON file and a type
+/// - `SourceType::JsonFile(LitStr, Type, Span)` — pass a path to a JSON file and a type
 /// to deserialize it into.`
 #[allow(dead_code)]
 pub enum SourceType {
-    JsonFile(LitStr, Option<Type>),
+    JsonFile(LitStr, Option<Type>, Span),
+    JsonString(LitStr, Option<Type>, Span),
+}
+
+impl SourceType {
+    pub fn span(&self) -> Span {
+        match self {
+            SourceType::JsonFile(_, _, span) => *span,
+            SourceType::JsonString(_, _, span) => *span,
+        }
+    }
 }
 
 impl Parse for SourceType {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         // 1. Parse the path (e.g., SourceType::<User>::JsonFile or JsonFile)
         let path: Path = input.parse()?;
+        let path_span = path.span();
 
         // 2. Extract type from turbofish if present in any segment
         let mut generic_type: Option<Type> = None;
@@ -57,7 +70,26 @@ impl Parse for SourceType {
                 // Preference: argument type > turbofish type
                 let final_type = arg_type.or(generic_type);
 
-                Ok(SourceType::JsonFile(file_path, final_type))
+                Ok(SourceType::JsonFile(file_path, final_type, path_span))
+            }
+            "JsonString" => {
+                let content;
+                syn::parenthesized!(content in input);
+                
+                // Parse the JSON string (Required)
+                let json_string: LitStr = content.parse()?;
+                
+                // Parse the type if it follows a comma: ("{}", User)
+                let mut arg_type: Option<Type> = None;
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                    arg_type = Some(content.parse()?);
+                }
+
+                // Preference: argument type > turbofish type
+                let final_type = arg_type.or(generic_type);
+
+                Ok(SourceType::JsonString(json_string, final_type, path_span))
             }
             v => Err(syn::Error::new_spanned(last_segment, format!("Unknown variant: {}", v))),
         }

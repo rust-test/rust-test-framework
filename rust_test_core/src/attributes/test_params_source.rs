@@ -5,23 +5,42 @@ use crate::attributes::common::{generate_test_set, parse_item_fn, ValueWithSpan}
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use serde_json::Value;
-use syn::spanned::Spanned;
 use syn::{parse2, LitStr, Type};
 
 pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
-    let source_span = attr.span();
     let source: SourceType = parse2(attr).map_err(|e| {
         syn::Error::new(
             e.span(),
             format!("Expected [`rust_test::SourceType`] variant: {}", e),
         )
     })?;
+    let source_span = source.span();
     let input_fn = parse_item_fn(item)?;
     let fn_name = input_fn.sig.ident.clone();
 
     // 1. Extract parameter type from function if not provided in attribute
-    let (file_path, mut type_name): (LitStr, Option<Type>) = match source {
-        SourceType::JsonFile(path, ty) => (path, ty),
+    let (json_content, mut type_name, file_info): (String, Option<Type>, Option<(LitStr, String)>) = match source {
+        SourceType::JsonFile(path, ty, _) => {
+            let file_path_value = path.value();
+            // Resolve the full path
+            let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").ok_or_else(|| {
+                syn::Error::new_spanned(&path, "CARGO_MANIFEST_DIR not set")
+            })?;
+            let full_path = std::path::Path::new(&manifest_dir).join(&file_path_value);
+            let file_path_literal = full_path.to_str().ok_or_else(|| {
+                syn::Error::new_spanned(&path, "Path contains invalid UTF-8")
+            })?;
+
+            // Read the file
+            let content = std::fs::read_to_string(&full_path).map_err(|e| {
+                syn::Error::new_spanned(
+                    &path,
+                    format!("Could not read file {}: {}", full_path.display(), e),
+                )
+            })?;
+            (content, ty, Some((path, file_path_literal.to_string())))
+        }
+        SourceType::JsonString(json_str, ty, _) => (json_str.value(), ty, None),
     };
 
     if type_name.is_none() {
@@ -40,27 +59,6 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
         // For multiple parameters, type_name remains None and generate_test_set will infer it as a tuple.
     }
 
-    let file_path_value = file_path.value();
-
-    // Resolve the full path
-    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").ok_or_else(|| {
-        syn::Error::new_spanned(&file_path, "CARGO_MANIFEST_DIR not set")
-    })?;
-    let full_path = std::path::Path::new(&manifest_dir).join(&file_path_value);
-    let file_path_literal = full_path.to_str().ok_or_else(|| {
-        syn::Error::new_spanned(&file_path, "Path contains invalid UTF-8")
-    })?;
-
-    let const_name = format_ident!("{}_DATA", fn_name.to_string().to_uppercase());
-
-    // Read the file
-    let file_content = std::fs::read_to_string(&full_path).map_err(|e| {
-        syn::Error::new_spanned(
-            &file_path,
-            format!("Could not read file {}: {}", full_path.display(), e),
-        )
-    })?;
-
     let is_vec = if let Some(Type::Path(type_path)) = &type_name {
         type_path.path.segments.last().map(|s| s.ident.to_string() == "Vec").unwrap_or(false)
     } else {
@@ -70,16 +68,10 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
     let type_name_opt = type_name;
 
     // Parse JSON and generate tests
-    let tests_stream: TokenStream = match serde_json::from_str(&file_content) {
+    let tests_stream: TokenStream = match serde_json::from_str(&json_content) {
         Ok(Value::Array(array)) => {
             // If expected type is Vec, try parsing it as both list of list and just single list before throwing an error
             if is_vec {
-                // Try treating each element as a test case (list of list)
-                // We don't really know if it will work until runtime when we deserialize, 
-                // but we can try to peek if the first element is also an array.
-                // However, the requirement says "try parsing it as both... before throwing an error".
-                // Since this is compile time (proc macro), we can't "try parsing" with actual data easily,
-                // unless we do it here.
                 let all_are_arrays = array.iter().all(|v| v.is_array());
                 if all_are_arrays {
                     generate_test_set(
@@ -89,9 +81,10 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
                             .map(|v| ValueWithSpan {
                                 value: v,
                                 span: source_span,
+                                suffix: None,
                             })
                             .collect(),
-                        fn_name,
+                        fn_name.clone(),
                         type_name_opt,
                     )?
                 } else {
@@ -101,8 +94,9 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
                         vec![ValueWithSpan {
                             value: Value::Array(array),
                             span: source_span,
+                            suffix: None,
                         }],
-                        fn_name,
+                        fn_name.clone(),
                         type_name_opt,
                     )?
                 }
@@ -114,9 +108,10 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
                         .map(|v| ValueWithSpan {
                             value: v,
                             span: source_span,
+                            suffix: None,
                         })
                         .collect(),
-                    fn_name,
+                    fn_name.clone(),
                     type_name_opt,
                 )?
             }
@@ -126,24 +121,36 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
             vec![ValueWithSpan {
                 value: single_value,
                 span: source_span,
+                suffix: None,
             }],
-            fn_name,
+            fn_name.clone(),
             type_name_opt,
         )?,
         Err(e) => {
-            return Err(syn::Error::new_spanned(
-                &file_path,
-                format!("Could not parse JSON file {}: {}", file_path_value, e),
-            ))
+            if let Some((file_path, _)) = &file_info {
+                return Err(syn::Error::new_spanned(
+                    file_path,
+                    format!("Could not parse JSON file {}: {}", file_path.value(), e),
+                ));
+            } else {
+                return Err(syn::Error::new(
+                    source_span,
+                    format!("Could not parse JSON: {}", e),
+                ));
+            }
         }
     };
 
-    let file_path_const = quote! { const #const_name: &str = include_str!(#file_path_literal); };
-
-    // Output the const + generated tests
-    Ok(quote! {
-        /// --- Test data source
-        #file_path_const
-        #tests_stream
-    })
+    if let Some((_file_path, file_path_literal)) = file_info {
+        let const_name = format_ident!("{}_DATA", fn_name.to_string().to_uppercase());
+        let file_path_const = quote! { const #const_name: &str = include_str!(#file_path_literal); };
+        // Output the const + generated tests
+        Ok(quote! {
+            /// --- Test data source
+            #file_path_const
+            #tests_stream
+        })
+    } else {
+        Ok(tests_stream)
+    }
 }

@@ -25,20 +25,14 @@ pub fn test_params(_attr: TokenStream, item: TokenStream) -> syn::Result<TokenSt
             ));
         }
         let span = args.values[0].span; // Use the first arg span for the array
+        let suffix = args.values.iter().filter_map(|v| v.suffix.clone()).collect::<Vec<_>>().join("_");
         vec![ValueWithSpan {
             value: Value::Array(args.values.into_iter().map(|v| v.value).collect()),
             span,
+            suffix: Some(suffix),
         }]
     } else if arg_count == 1 {
-        if args.values.len() > 1 {
-            let span = args.values[0].span;
-            vec![ValueWithSpan {
-                value: Value::Array(args.values.into_iter().map(|v| v.value).collect()),
-                span,
-            }]
-        } else {
-            vec![args.values[0].clone()]
-        }
+        args.values
     } else {
         return Err(syn::Error::new_spanned(
             &input_fn.sig.inputs,
@@ -70,9 +64,11 @@ impl Parse for TestCaseArgs {
                         break;
                     }
                 }
+                let suffix = tuple_values.iter().filter_map(|v| v.suffix.clone()).collect::<Vec<_>>().join("_");
                 values.push(ValueWithSpan {
                     value: Value::Array(tuple_values.into_iter().map(|v| v.value).collect()),
                     span: paren_token.span.join(),
+                    suffix: Some(suffix),
                 });
             } else {
                 let expr: Expr = input.parse()?;

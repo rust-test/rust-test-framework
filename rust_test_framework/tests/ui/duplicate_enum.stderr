@@ -1,0 +1,5 @@
+error: Duplicate test case value found
+  --> tests/ui/duplicate_enum.rs:11:15
+   |
+11 | #[test_params(MyEnum::A)]
+   |               ^^^^^^

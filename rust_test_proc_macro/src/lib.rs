@@ -138,3 +138,9 @@ pub fn test_fixture(attr: TokenStream, item: TokenStream) -> TokenStream {
         .unwrap_or_else(|e| e.into_compile_error())
         .into()
 }
+
+/// Internal use only.
+#[proc_macro_attribute]
+pub fn rust_test_seen_value(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}

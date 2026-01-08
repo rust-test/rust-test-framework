@@ -1,0 +1,5 @@
+error: Duplicate test case value found
+ --> tests/ui/duplicate_params_single.rs:3:18
+  |
+3 | #[test_params(1, 1)]
+  |                  ^

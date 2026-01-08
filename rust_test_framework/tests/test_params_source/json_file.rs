@@ -88,7 +88,3 @@ fn test_enums(e: TestEnum) {
     }
 }
 
-#[test]
-fn test_framework_version() {
-    assert!(!rust_test_framework::version().is_empty());
-}

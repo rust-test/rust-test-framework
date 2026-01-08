@@ -1,0 +1,13 @@
+error: Could not parse JSON: key must be a string at line 1 column 3
+ --> tests/ui/invalid_json_string.rs:3:22
+  |
+3 | #[test_params_source(JsonString("{ invalid json }", i32))]
+  |                      ^^^^^^^^^^
+
+warning: unused import: `SourceType`
+ --> tests/ui/invalid_json_string.rs:1:47
+  |
+1 | use rust_test_framework::{test_params_source, SourceType};
+  |                                               ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

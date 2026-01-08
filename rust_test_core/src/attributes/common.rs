@@ -3,7 +3,7 @@ use quote::{format_ident, quote};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use syn::spanned::Spanned;
-use syn::{Expr, ItemFn, Lit, Type};
+use syn::{Expr, ItemFn, Lit, Type, LitStr};
 
 fn is_path_type(ty: &Type) -> bool {
     let check_path = |path: &syn::Path| {
@@ -47,27 +47,39 @@ fn resolve_path(path_str: &str) -> Option<PathBuf> {
 pub struct ValueWithSpan {
     pub value: Value,
     pub span: Span,
+    pub suffix: Option<String>,
 }
 
 pub fn expr_to_value_with_span(expr: &Expr) -> syn::Result<ValueWithSpan> {
-    let value = expr_to_value(expr)?;
+    let (value, suffix) = expr_to_value_and_suffix(expr)?;
     Ok(ValueWithSpan {
         value,
         span: expr.span(),
+        suffix: Some(suffix),
     })
 }
 
+#[allow(dead_code)]
 pub fn expr_to_value(expr: &Expr) -> syn::Result<Value> {
+    expr_to_value_and_suffix(expr).map(|(v, _)| v)
+}
+
+pub fn expr_to_value_and_suffix(expr: &Expr) -> syn::Result<(Value, String)> {
     match expr {
-        Expr::Lit(expr_lit) => lit_to_value(&expr_lit.lit),
+        Expr::Lit(expr_lit) => {
+            let val = lit_to_value(&expr_lit.lit)?;
+            let suffix = value_to_suffix(&val);
+            Ok((val, suffix))
+        }
         Expr::Path(expr_path) => {
             // Treat path as enum unit variant
             if let Some(segment) = expr_path.path.segments.last() {
                 let name = segment.ident.to_string();
                 if name == "None" && expr_path.path.segments.len() == 1 {
-                    Ok(Value::Null)
+                    Ok((Value::Null, "null".to_string()))
                 } else {
-                    Ok(Value::String(name))
+                    let suffix = name.to_lowercase();
+                    Ok((Value::String(name), suffix))
                 }
             } else {
                 Err(syn::Error::new_spanned(expr, "Invalid path"))
@@ -90,57 +102,64 @@ pub fn expr_to_value(expr: &Expr) -> syn::Result<Value> {
             };
 
             let mut args = Vec::new();
+            let mut arg_suffixes = Vec::new();
             for arg in &expr_call.args {
-                args.push(expr_to_value(arg)?);
+                let (v, s) = expr_to_value_and_suffix(arg)?;
+                args.push(v);
+                arg_suffixes.push(s);
             }
 
             if variant_name == "Some" && segments_len == 1 && args.len() == 1 {
-                return Ok(args[0].clone());
+                return Ok((args[0].clone(), arg_suffixes[0].clone()));
             }
 
-            Ok(to_tagged_object(variant_name, args))
+            let value = to_tagged_object(variant_name.clone(), args);
+            let suffix = format!("{}_{}", variant_name.to_lowercase(), arg_suffixes.join("_"));
+            Ok((value, suffix))
         }
         Expr::Struct(expr_struct) => {
             let mut fields = serde_json::Map::new();
+            let mut field_suffixes = Vec::new();
+            let struct_name = expr_struct.path.segments.last().unwrap().ident.to_string();
+
             for field in &expr_struct.fields {
                 let field_name = if let syn::Member::Named(ident) = &field.member {
                     ident.to_string()
                 } else {
                     return Err(syn::Error::new_spanned(&field.member, "Expected named field"));
                 };
-                fields.insert(field_name, expr_to_value(&field.expr)?);
+                let (v, s) = expr_to_value_and_suffix(&field.expr)?;
+                fields.insert(field_name.clone(), v);
+                field_suffixes.push(format!("{}_{}", field_name, s));
             }
 
+            let suffix = format!("{}_{}", struct_name.to_lowercase(), field_suffixes.join("_"));
+
             if expr_struct.path.segments.len() > 1 {
-                let variant_name = expr_struct
-                    .path
-                    .segments
-                    .last()
-                    .unwrap()
-                    .ident
-                    .to_string();
-                Ok(to_tagged_object(variant_name, vec![Value::Object(fields)]))
+                let variant_name = struct_name.clone();
+                Ok((to_tagged_object(variant_name, vec![Value::Object(fields)]), suffix))
             } else {
                 // Direct struct initialization
-                Ok(Value::Object(fields))
+                Ok((Value::Object(fields), suffix))
             }
         }
         Expr::Unary(expr_unary) => {
             if let syn::UnOp::Neg(_) = expr_unary.op {
-                let val = expr_to_value(&expr_unary.expr)?;
+                let (val, s) = expr_to_value_and_suffix(&expr_unary.expr)?;
                 match val {
                     Value::Number(n) => {
-                        if let Some(i) = n.as_i64() {
-                            Ok(Value::Number((-i).into()))
+                        let negated_val = if let Some(i) = n.as_i64() {
+                            Value::Number((-i).into())
                         } else if let Some(f) = n.as_f64() {
                             if let Some(neg_f) = serde_json::Number::from_f64(-f) {
-                                Ok(Value::Number(neg_f))
+                                Value::Number(neg_f)
                             } else {
-                                Err(syn::Error::new_spanned(expr, "Invalid float after negation"))
+                                return Err(syn::Error::new_spanned(expr, "Invalid float after negation"));
                             }
                         } else {
-                            Err(syn::Error::new_spanned(expr, "Unsupported number for negation"))
-                        }
+                            return Err(syn::Error::new_spanned(expr, "Unsupported number for negation"));
+                        };
+                        Ok((negated_val, format!("neg_{}", s)))
                     }
                     _ => Err(syn::Error::new_spanned(expr, "Negation only supported for numbers")),
                 }
@@ -272,9 +291,33 @@ pub fn generate_test_set(
         ));
     };
 
+    let mut seen_values = Vec::new();
+    let mut other_attrs = Vec::new();
+    for attr in input_fn.attrs {
+        if attr.path().segments.last().map_or(false, |s| s.ident == "rust_test_seen_value") {
+            if let Ok(nested) = attr.parse_args::<LitStr>() {
+                if let Ok(Value::Array(prev_values)) = serde_json::from_str(&nested.value()) {
+                    seen_values.extend(prev_values);
+                }
+            }
+        } else {
+            other_attrs.push(attr);
+        }
+    }
+    input_fn.attrs = other_attrs;
+
     let test_functions = if json_array.len() == 1 {
         let value_with_span = &json_array[0];
         let value = &value_with_span.value;
+
+        // Check for duplicate values
+        if seen_values.contains(value) {
+            return Err(syn::Error::new(
+                value_with_span.span,
+                "Duplicate test case value found",
+            ));
+        }
+        seen_values.push(value.clone());
 
         // Check for Path existence if applicable
         if input_fn.sig.inputs.len() == 1 {
@@ -295,7 +338,7 @@ pub fn generate_test_set(
         generate_single_test(
             &real_fn_name,
             &impl_fn_name,
-            value,
+            value_with_span,
             None,
             &type_token,
             is_tuple,
@@ -307,11 +350,21 @@ pub fn generate_test_set(
             .enumerate()
             .map(|(i, value_with_span)| {
                 let value = &value_with_span.value;
+
+                // Check for duplicate values
+                if seen_values.contains(value) {
+                    return Err(syn::Error::new(
+                        value_with_span.span,
+                        "Duplicate test case value found",
+                    ));
+                }
+                seen_values.push(value.clone());
+
                 // Check for Path existence if applicable
                 if input_fn.sig.inputs.len() == 1 {
                     if let Some(syn::FnArg::Typed(pat_type)) = input_fn.sig.inputs.first() {
                         if is_path_type(&pat_type.ty) {
-                            if let Value::String(path_str) = &value {
+                            if let Value::String(path_str) = &value_with_span.value {
                                 if resolve_path(path_str).is_none() {
                                     return Err(syn::Error::new(
                                         value_with_span.span,
@@ -326,7 +379,7 @@ pub fn generate_test_set(
                 generate_single_test(
                     &real_fn_name,
                     &impl_fn_name,
-                    &value,
+                    &value_with_span,
                     Some(i),
                     &type_token,
                     is_tuple,
@@ -340,6 +393,9 @@ pub fn generate_test_set(
         }
     };
 
+    let seen_values_json = serde_json::to_string(&seen_values).unwrap_or_default();
+    input_fn.attrs.push(syn::parse_quote!(#[rust_test_framework::rust_test_seen_value(#seen_values_json)]));
+
     Ok(quote! {
         /// Original test function
         #input_fn
@@ -350,12 +406,13 @@ pub fn generate_test_set(
 fn generate_single_test(
     fn_name: &Ident,
     impl_fn_name: &Ident,
-    value: &Value,
+    value_with_span: &ValueWithSpan,
     index: Option<usize>,
     type_token: &TokenStream,
     is_tuple: bool,
     arg_count: usize,
 ) -> syn::Result<TokenStream> {
+    let value = &value_with_span.value;
     let json_str = serialize_json(value).map_err(|e| {
         let msg = if let Some(i) = index {
             format!("Failed to serialize JSON at index {}: {}", i, e)
@@ -365,7 +422,11 @@ fn generate_single_test(
         syn::Error::new_spanned(fn_name, msg)
     })?;
 
-    let suffix = value_to_suffix(value);
+    let suffix = if let Some(s) = &value_with_span.suffix {
+        s.clone()
+    } else {
+        value_to_suffix(value)
+    };
     let test_fn_name = if suffix.is_empty() {
         if let Some(i) = index {
             format_ident!("{}_{}", fn_name, i)

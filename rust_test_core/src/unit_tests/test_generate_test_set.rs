@@ -14,6 +14,7 @@ fn test_generate_test_set_empty_suffix() {
     let json_array = vec![ValueWithSpan {
         value: Value::Null,
         span: Span::call_site(),
+        suffix: None,
     }];
     let fn_name = format_ident!("my_test");
     let type_name: syn::Type = parse_quote! { u32 };
@@ -42,6 +43,7 @@ fn test_generate_test_set_serialization_error() {
         vec![ValueWithSpan {
             value: Value::Null,
             span: Span::call_site(),
+            suffix: None,
         }],
         fn_name.clone(),
         Some(type_name.clone()),
@@ -61,10 +63,12 @@ fn test_generate_test_set_serialization_error() {
             ValueWithSpan {
                 value: Value::Null,
                 span: Span::call_site(),
+                suffix: None,
             },
             ValueWithSpan {
                 value: Value::Null,
                 span: Span::call_site(),
+                suffix: None,
             },
         ],
         fn_name,
