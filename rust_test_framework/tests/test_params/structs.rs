@@ -47,9 +47,13 @@ fn test_two_structs(p: Point, d: Dimensions) {
 }
 
 #[test_params(Point { x: 1, y: 2 }, Dimensions { width: 10, height: 20 })]
+#[test_params(Point { y: 2, x: 1 }, Dimensions { height: 20, width: 10 })]
+#[test_params(Point { y: 2, x: 1 }, Dimensions { width: 10, height: 20 })]
 fn test_two_structs_initialization(p: Point, d: Dimensions) {
     assert_eq!(p.x, 1);
     assert_eq!(p.y, 2);
     assert_eq!(d.width, 10);
     assert_eq!(d.height, 20);
 }
+
+

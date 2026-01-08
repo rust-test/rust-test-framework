@@ -1,4 +1,5 @@
-use crate::attributes::common::generate_test_set;
+use crate::attributes::common::{generate_test_set, ValueWithSpan};
+use proc_macro2::Span;
 use quote::format_ident;
 use serde_json::Value;
 use std::sync::Mutex;
@@ -10,7 +11,10 @@ static INTERNAL_ENV_MUTEX: Mutex<()> = Mutex::new(());
 fn test_generate_test_set_empty_suffix() {
     let _lock = INTERNAL_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     let input_fn: syn::ItemFn = parse_quote! { fn my_test(v: u32) {} };
-    let json_array = vec![Value::Null];
+    let json_array = vec![ValueWithSpan {
+        value: Value::Null,
+        span: Span::call_site(),
+    }];
     let fn_name = format_ident!("my_test");
     let type_name: syn::Type = parse_quote! { u32 };
 
@@ -35,7 +39,10 @@ fn test_generate_test_set_serialization_error() {
     // Case: single value
     let result = generate_test_set(
         input_fn.clone(),
-        vec![Value::Null],
+        vec![ValueWithSpan {
+            value: Value::Null,
+            span: Span::call_site(),
+        }],
         fn_name.clone(),
         Some(type_name.clone()),
     );
@@ -48,8 +55,21 @@ fn test_generate_test_set_serialization_error() {
     };
 
     // Case: multiple values
-    let result_multi =
-        generate_test_set(input_fn, vec![Value::Null, Value::Null], fn_name, Some(type_name));
+    let result_multi = generate_test_set(
+        input_fn,
+        vec![
+            ValueWithSpan {
+                value: Value::Null,
+                span: Span::call_site(),
+            },
+            ValueWithSpan {
+                value: Value::Null,
+                span: Span::call_site(),
+            },
+        ],
+        fn_name,
+        Some(type_name),
+    );
     let is_err_multi = result_multi.is_err();
     let err_msg_multi = if is_err_multi {
         result_multi.as_ref().unwrap_err().to_string()
