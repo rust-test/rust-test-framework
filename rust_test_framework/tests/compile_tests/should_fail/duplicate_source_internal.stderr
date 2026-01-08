@@ -1,5 +1,5 @@
 error: Duplicate test case value found
- --> tests/ui/duplicate_source_internal.rs:3:22
+ --> tests/compile_tests/should_fail/duplicate_source_internal.rs:3:22
   |
 3 | #[test_params_source(JsonFile("rust_test_framework/tests/test_data/duplicate.json"))]
   |                      ^^^^^^^^

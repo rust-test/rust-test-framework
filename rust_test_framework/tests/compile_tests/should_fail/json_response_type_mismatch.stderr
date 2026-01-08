@@ -1,0 +1,5 @@
+error: Expected JSON array for Vec type, but got: {"body":"quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto","id":1,"title":"sunt aut facere repellat provident occaecati excepturi optio reprehenderit","userId":1}
+  --> tests/compile_tests/should_fail/json_response_type_mismatch.rs:12:22
+   |
+12 | #[test_params_source(JsonResponse::<Vec<Post>>("https://jsonplaceholder.typicode.com/posts/1"))]
+   |                      ^^^^^^^^^^^^

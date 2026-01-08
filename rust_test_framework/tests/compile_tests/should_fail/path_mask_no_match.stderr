@@ -1,0 +1,19 @@
+error: No files matched pattern: non_existent_path/*.rs
+ --> tests/compile_tests/should_fail/path_mask_no_match.rs:5:31
+  |
+5 | #[test_params_source(PathMask("non_existent_path/*.rs"))]
+  |                               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `rust_test_framework::SourceType::PathMask`
+ --> tests/compile_tests/should_fail/path_mask_no_match.rs:2:5
+  |
+2 | use rust_test_framework::SourceType::PathMask;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::path::Path`
+ --> tests/compile_tests/should_fail/path_mask_no_match.rs:3:5
+  |
+3 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^

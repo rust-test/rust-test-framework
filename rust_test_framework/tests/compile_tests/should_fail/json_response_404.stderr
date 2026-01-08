@@ -1,0 +1,5 @@
+error: Could not fetch URL https://jsonplaceholder.typicode.com/invalid-path-that-returns-404: https://jsonplaceholder.typicode.com/invalid-path-that-returns-404: status code 404
+  --> tests/compile_tests/should_fail/json_response_404.rs:10:35
+   |
+10 | #[test_params_source(JsonResponse("https://jsonplaceholder.typicode.com/invalid-path-that-returns-404"))]
+   |                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

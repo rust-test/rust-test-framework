@@ -1,5 +1,5 @@
 error: Duplicate test case value found
- --> tests/ui/duplicate_params_stacked.rs:4:15
+ --> tests/compile_tests/should_fail/duplicate_params_stacked.rs:4:15
   |
 4 | #[test_params(1)]
   |               ^

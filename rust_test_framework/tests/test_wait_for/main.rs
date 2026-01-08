@@ -84,3 +84,4 @@ fn test_wait_for_multiple_polls() {
     assert_eq!(result, 5);
     assert!(counter >= 5);
 }
+

@@ -6,6 +6,13 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use serde_json::Value;
 use syn::{parse2, LitStr, Type};
+use std::sync::LazyLock;
+
+static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
+    ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+});
 
 pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     let source: SourceType = parse2(attr).map_err(|e| {
@@ -41,6 +48,25 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
             (content, ty.clone(), Some((path.clone(), file_path_literal.to_string())))
         }
         SourceType::JsonString(ref json_str, ref ty, _) => (json_str.value(), ty.clone(), None),
+        SourceType::JsonResponse(ref url, ref ty, _) => {
+            let url_value = url.value();
+            let content = AGENT.get(&url_value)
+                .call()
+                .map_err(|e| {
+                    syn::Error::new_spanned(
+                        url,
+                        format!("Could not fetch URL {}: {}", url_value, e),
+                    )
+                })?
+                .into_string()
+                .map_err(|e| {
+                    syn::Error::new_spanned(
+                        url,
+                        format!("Could not read response from {}: {}", url_value, e),
+                    )
+                })?;
+            (content, ty.clone(), None)
+        }
         SourceType::PathMask(ref mask, _) => {
             let mask_value = mask.value();
             let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").ok_or_else(|| {
@@ -167,16 +193,24 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
                 )?
             }
         }
-        Ok(single_value) => generate_test_set(
-            input_fn,
-            vec![ValueWithSpan {
-                value: single_value,
-                span: source_span,
-                suffix: None,
-            }],
-            fn_name.clone(),
-            type_name_opt,
-        )?,
+        Ok(single_value) => {
+            if is_vec {
+                return Err(syn::Error::new(
+                    source_span,
+                    format!("Expected JSON array for Vec type, but got: {}", single_value),
+                ));
+            }
+            generate_test_set(
+                input_fn,
+                vec![ValueWithSpan {
+                    value: single_value,
+                    span: source_span,
+                    suffix: None,
+                }],
+                fn_name.clone(),
+                type_name_opt,
+            )?
+        }
         Err(e) => {
             if let Some((file_path, _)) = &file_info {
                 return Err(syn::Error::new_spanned(

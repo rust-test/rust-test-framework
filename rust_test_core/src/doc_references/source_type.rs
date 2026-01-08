@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 /// # Variants:
 /// - [`JsonFile::<T>(path)`](SourceType::JsonFile): A path to a JSON file.
 /// - [`JsonString::<T>(json)`](SourceType::JsonString): A JSON string literal.
+/// - [`JsonResponse::<T>(url)`](SourceType::JsonResponse): A URL to fetch JSON from.
 /// - [`PathMask(pattern)`](SourceType::PathMask): A glob pattern to match files.
 pub enum SourceType<T: DeserializeOwned>
 {
@@ -47,6 +48,24 @@ pub enum SourceType<T: DeserializeOwned>
     /// # ;
     /// ```
     JsonString(&'static str),
+
+    /// # Example
+    /// ```rust
+    /// # use rust_test_core::SourceType;
+    /// # use serde::Deserialize;
+    /// # #[derive(Deserialize)]
+    /// # struct User { name: String, age: u32 }
+    /// # let user_source: SourceType<User> =
+    /// // Type inferred from the function signature:
+    /// SourceType::JsonResponse("https://jsonplaceholder.typicode.com/users/1")
+    /// # ;
+    /// # let users_source =
+    /// // Type explicitly provided,
+    /// // can also be used as JsonResponse::<Vec<User>>("https://jsonplaceholder.typicode.com/users")
+    /// SourceType::<Vec<User>>::JsonResponse("https://jsonplaceholder.typicode.com/users")
+    /// # ;
+    /// ```
+    JsonResponse(&'static str),
 
     /// A glob pattern to match files.
     ///

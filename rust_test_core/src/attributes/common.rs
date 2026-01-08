@@ -52,9 +52,13 @@ pub struct ValueWithSpan {
 
 pub fn expr_to_value_with_span(expr: &Expr) -> syn::Result<ValueWithSpan> {
     let (value, suffix) = expr_to_value_and_suffix(expr)?;
+    let span = match expr {
+        Expr::Path(p) => p.path.span(),
+        _ => expr.span(),
+    };
     Ok(ValueWithSpan {
         value,
-        span: expr.span(),
+        span,
         suffix: Some(suffix),
     })
 }

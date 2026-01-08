@@ -12,6 +12,7 @@ use syn::spanned::Spanned;
 pub enum SourceType {
     JsonFile(LitStr, Option<Type>, Span),
     JsonString(LitStr, Option<Type>, Span),
+    JsonResponse(LitStr, Option<Type>, Span),
     PathMask(LitStr, Span),
 }
 
@@ -20,6 +21,7 @@ impl SourceType {
         match self {
             SourceType::JsonFile(_, _, span) => *span,
             SourceType::JsonString(_, _, span) => *span,
+            SourceType::JsonResponse(_, _, span) => *span,
             SourceType::PathMask(_, span) => *span,
         }
     }
@@ -92,6 +94,25 @@ impl Parse for SourceType {
                 let final_type = arg_type.or(generic_type);
 
                 Ok(SourceType::JsonString(json_string, final_type, path_span))
+            }
+            "JsonResponse" => {
+                let content;
+                syn::parenthesized!(content in input);
+
+                // Parse the URL (Required)
+                let url: LitStr = content.parse()?;
+
+                // Parse the type if it follows a comma: ("url", User)
+                let mut arg_type: Option<Type> = None;
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                    arg_type = Some(content.parse()?);
+                }
+
+                // Preference: argument type > turbofish type
+                let final_type = arg_type.or(generic_type);
+
+                Ok(SourceType::JsonResponse(url, final_type, path_span))
             }
             "PathMask" => {
                 let content;
