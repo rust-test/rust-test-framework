@@ -10,6 +10,19 @@
 
 A data-driven testing framework for Rust.
 
+## Table of Contents
+- [Features](#features)
+- [Usage](#usage)
+  - [Requirements](#requirements)
+  - [Inlined Parameters](#inlined-parameters)
+  - [External Data Sources](#external-data-sources)
+    - [SourceType::JsonFile](#sourcetypejsonfile)
+    - [SourceType::JsonString](#sourcetypejsonstring)
+    - [SourceType::PathMask](#sourcetypepathmask)
+  - [Mixing Inline Parameters and External Sources](#mixing-inline-parameters-and-external-sources)
+  - [Test Fixtures](#test-fixtures)
+- [License](#license)
+
 ## Features
 
 - **Data-Driven Testing (DDT)**: Run the same test logic with multiple inputs.
@@ -23,14 +36,14 @@ This project is currently in **alpha**.
 
 ### Requirements
 
-- **Rust Version**: 1.70.0 or higher
+- **Rust Version**: 1.80.0 or higher
 - **Edition**: 2021
 
 Add this to your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-rust_test_framework = "0.1.1-alpha.9"
+rust_test_framework = "0.1.3-alpha.1"
 ```
 
 Example usage:
@@ -91,7 +104,9 @@ fn test_option(val: Option<u32>) {
 
 ### External Data Sources
 
-Use `#[test_params_source]` to load test cases from external files.
+Use `#[test_params_source]` to load test cases from external files. It supports different source types via `SourceType`.
+
+#### SourceType::JsonFile
 
 ```rust
 use rust_test_framework::{test_params_source, SourceType};
@@ -116,6 +131,38 @@ fn test_addition(case: TestCase) {
 #[test_params_source(JsonFile("tests/multi_params.json"))]
 fn test_multi(id: u32, name: String) {
   assert!(id > 0);
+}
+```
+
+#### SourceType::JsonString
+
+```rust
+use rust_test_framework::{test_params_source, SourceType};
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct Config {
+    enabled: bool,
+}
+
+#[test_params_source(JsonString(r#"{"enabled": true}"#))]
+fn test_config(cfg: Config) {
+    assert!(cfg.enabled);
+}
+```
+
+#### SourceType::PathMask
+
+`PathMask` generates a test case for each file matching a glob pattern. The test function must accept exactly one parameter of type `&Path` or `PathBuf`.
+
+```rust
+use rust_test_framework::{test_params_source, SourceType};
+use std::path::Path;
+
+#[test_params_source(PathMask("tests/compile_tests/should_pass/*.rs"))]
+fn test_files_compile(path: &Path) {
+    // Each matching file will be passed to this function as a separate test case.
+    assert!(path.exists());
 }
 ```
 

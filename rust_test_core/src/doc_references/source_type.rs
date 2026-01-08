@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 /// # Variants:
 /// - [`JsonFile::<T>(path)`](SourceType::JsonFile): A path to a JSON file.
 /// - [`JsonString::<T>(json)`](SourceType::JsonString): A JSON string literal.
+/// - [`PathMask(pattern)`](SourceType::PathMask): A glob pattern to match files.
 pub enum SourceType<T: DeserializeOwned>
 {
     /// # Example
@@ -46,6 +47,21 @@ pub enum SourceType<T: DeserializeOwned>
     /// # ;
     /// ```
     JsonString(&'static str),
+
+    /// A glob pattern to match files.
+    ///
+    /// It generates a test for each file matching the pattern.
+    /// The test function must have exactly one parameter of type `&Path` or `PathBuf`.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use rust_test_core::SourceType;
+    /// # use std::path::Path;
+    /// # let source: SourceType<()> =
+    /// SourceType::PathMask("tests/ui/*.rs")
+    /// # ;
+    /// ```
+    PathMask(&'static str),
 
     #[doc(hidden)]
     __PrivateMarker(PhantomData<T>)

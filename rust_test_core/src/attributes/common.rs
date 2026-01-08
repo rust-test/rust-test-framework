@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use syn::spanned::Spanned;
 use syn::{Expr, ItemFn, Lit, Type, LitStr};
 
-fn is_path_type(ty: &Type) -> bool {
+pub(crate) fn is_path_type(ty: &Type) -> bool {
     let check_path = |path: &syn::Path| {
         path.segments.last().map_or(false, |s| {
             let name = s.ident.to_string();

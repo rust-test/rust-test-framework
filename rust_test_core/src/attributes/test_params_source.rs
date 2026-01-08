@@ -1,7 +1,7 @@
 mod source_type;
 
 pub use crate::attributes::test_params_source::source_type::SourceType;
-use crate::attributes::common::{generate_test_set, parse_item_fn, ValueWithSpan};
+use crate::attributes::common::{generate_test_set, parse_item_fn, ValueWithSpan, is_path_type};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use serde_json::Value;
@@ -20,28 +20,79 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
 
     // 1. Extract parameter type from function if not provided in attribute
     let (json_content, mut type_name, file_info): (String, Option<Type>, Option<(LitStr, String)>) = match source {
-        SourceType::JsonFile(path, ty, _) => {
+        SourceType::JsonFile(ref path, ref ty, _) => {
             let file_path_value = path.value();
             // Resolve the full path
             let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").ok_or_else(|| {
-                syn::Error::new_spanned(&path, "CARGO_MANIFEST_DIR not set")
+                syn::Error::new_spanned(path, "CARGO_MANIFEST_DIR not set")
             })?;
             let full_path = std::path::Path::new(&manifest_dir).join(&file_path_value);
             let file_path_literal = full_path.to_str().ok_or_else(|| {
-                syn::Error::new_spanned(&path, "Path contains invalid UTF-8")
+                syn::Error::new_spanned(path, "Path contains invalid UTF-8")
             })?;
 
             // Read the file
             let content = std::fs::read_to_string(&full_path).map_err(|e| {
                 syn::Error::new_spanned(
-                    &path,
+                    path,
                     format!("Could not read file {}: {}", full_path.display(), e),
                 )
             })?;
-            (content, ty, Some((path, file_path_literal.to_string())))
+            (content, ty.clone(), Some((path.clone(), file_path_literal.to_string())))
         }
-        SourceType::JsonString(json_str, ty, _) => (json_str.value(), ty, None),
+        SourceType::JsonString(ref json_str, ref ty, _) => (json_str.value(), ty.clone(), None),
+        SourceType::PathMask(ref mask, _) => {
+            let mask_value = mask.value();
+            let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").ok_or_else(|| {
+                syn::Error::new_spanned(mask, "CARGO_MANIFEST_DIR not set")
+            })?;
+            let full_mask = std::path::Path::new(&manifest_dir).join(&mask_value);
+            let full_mask_str = full_mask.to_str().ok_or_else(|| {
+                syn::Error::new_spanned(mask, "Path mask contains invalid UTF-8")
+            })?;
+
+            let matches: Vec<_> = glob::glob(full_mask_str)
+                .map_err(|e| syn::Error::new_spanned(mask, format!("Invalid glob pattern: {}", e)))?
+                .filter_map(Result::ok)
+                .collect();
+
+            if matches.is_empty() {
+                return Err(syn::Error::new_spanned(
+                    mask,
+                    format!("No files matched pattern: {}", mask_value),
+                ));
+            }
+
+            let paths: Vec<Value> = matches
+                .into_iter()
+                .filter_map(|p| {
+                    p.strip_prefix(&manifest_dir)
+                        .ok()
+                        .and_then(|p| p.to_str())
+                        .map(|s| Value::String(s.to_string()))
+                })
+                .collect();
+
+            (serde_json::to_string(&paths).unwrap(), None, None)
+        }
     };
+
+    if let SourceType::PathMask(_, _) = source {
+        if input_fn.sig.inputs.len() != 1 {
+            return Err(syn::Error::new_spanned(
+                &input_fn.sig.inputs,
+                "PathMask requires exactly one parameter",
+            ));
+        }
+        if let Some(syn::FnArg::Typed(pat_type)) = input_fn.sig.inputs.first() {
+            if !is_path_type(&pat_type.ty) {
+                return Err(syn::Error::new_spanned(
+                    &pat_type.ty,
+                    "PathMask requires a &Path or PathBuf parameter",
+                ));
+            }
+        }
+    }
 
     if type_name.is_none() {
         if input_fn.sig.inputs.is_empty() {

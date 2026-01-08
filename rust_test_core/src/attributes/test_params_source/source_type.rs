@@ -12,6 +12,7 @@ use syn::spanned::Spanned;
 pub enum SourceType {
     JsonFile(LitStr, Option<Type>, Span),
     JsonString(LitStr, Option<Type>, Span),
+    PathMask(LitStr, Span),
 }
 
 impl SourceType {
@@ -19,6 +20,7 @@ impl SourceType {
         match self {
             SourceType::JsonFile(_, _, span) => *span,
             SourceType::JsonString(_, _, span) => *span,
+            SourceType::PathMask(_, span) => *span,
         }
     }
 }
@@ -90,6 +92,15 @@ impl Parse for SourceType {
                 let final_type = arg_type.or(generic_type);
 
                 Ok(SourceType::JsonString(json_string, final_type, path_span))
+            }
+            "PathMask" => {
+                let content;
+                syn::parenthesized!(content in input);
+
+                // Parse the path (Required)
+                let path_mask: LitStr = content.parse()?;
+
+                Ok(SourceType::PathMask(path_mask, path_span))
             }
             v => Err(syn::Error::new_spanned(last_segment, format!("Unknown variant: {}", v))),
         }
