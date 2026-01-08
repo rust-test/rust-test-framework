@@ -14,23 +14,11 @@ fn test_string(val: String) {
     assert!(!val.is_empty());
 }
 
-#[test_params(10)]
-#[test_params(20)]
-fn test_no_turbofish(val: u32) {
-    assert!(val >= 10);
-}
-
 #[test_params(1, "one")]
 #[test_params(2, "two")]
 fn test_multiple_values(id: u32, label: String) {
     assert!(id > 0);
     assert!(!label.is_empty());
-}
-
-#[test_params(1)]
-#[test_params(2)]
-fn test_stacked(val: u32) {
-    assert!(val > 0);
 }
 
 #[test_params(Ok(1))]
@@ -63,30 +51,84 @@ fn test_mixed_stacking(val: u32) {
 #[test_fixture]
 mod fixture_with_test_params {
     use super::*;
-    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::{LazyLock, Mutex};
+    use std::time::Duration;
+    use rust_test_framework::{test_params_source, wait_for};
 
-    static SETUP_COUNT: AtomicU32 = AtomicU32::new(0);
+    struct TestCounts {
+        setup: u32,
+        teardown: u32,
+    }
+
+    struct FixtureSync {
+        lock: Mutex<TestCounts>,
+    }
+
+    static COUNTS: LazyLock<FixtureSync> = LazyLock::new(|| {
+        FixtureSync {
+            lock: Mutex::new(TestCounts { setup: 0, teardown: 0 }),
+        }
+    });
 
     #[setup]
     fn set_up() {
-        SETUP_COUNT.fetch_add(1, Ordering::SeqCst);
+        println!("setup");
+        let counts_sync = &*COUNTS;
+        let mut counts = counts_sync.lock.lock().unwrap();
+        counts.setup += 1;
     }
 
     #[teardown]
     fn tear_down() {
-        // Just for completeness
+        println!("teardown");
+        let counts_sync = &*COUNTS;
+        let mut counts = counts_sync.lock.lock().unwrap();
+        counts.teardown += 1;
     }
 
     #[test_params(1)]
     #[test_params(2)]
     #[test_params(3)]
     fn test_in_fixture(val: u32) {
+        println!("{}", val);
         assert!(val > 0);
-        assert!(SETUP_COUNT.load(Ordering::SeqCst) > 0);
+        let counts_sync = &*COUNTS;
+        assert!(counts_sync.lock.lock().unwrap().setup > 0);
+    }
+
+    #[test_params_source(JsonString("[4]"))]
+    fn test_in_fixture_sourced(val: u32) {
+        println!("{}", val);
+        assert!(val > 0);
+        let counts_sync = &*COUNTS;
+        assert!(counts_sync.lock.lock().unwrap().setup > 0);
     }
 
     #[test]
     fn verify_counts() {
-        assert!(SETUP_COUNT.load(Ordering::SeqCst) > 0);
+        //TODO: add timeout attribute
+        let counts_sync = &*COUNTS;
+        let timeout = Duration::from_secs(5);
+        let poll_interval = Duration::from_millis(500);
+
+        let final_counts = wait_for!(
+            || {
+                let counts = counts_sync.lock.lock().unwrap();
+                if counts.setup == 5 && counts.teardown == 4 {
+                    Some(counts)
+                } else {
+                    None
+                }
+            },
+            timeout,
+            poll_interval,
+            {
+                let counts = counts_sync.lock.lock().unwrap();
+                format!("waiting for test counts. Current: setup={}, teardown={}", counts.setup, counts.teardown)
+            }
+        );
+
+        assert_eq!(final_counts.setup, 5);
+        assert_eq!(final_counts.teardown, 4);
     }
 }
