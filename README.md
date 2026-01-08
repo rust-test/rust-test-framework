@@ -21,6 +21,7 @@ A data-driven testing framework for Rust.
     - [SourceType::PathMask](#sourcetypepathmask)
   - [Mixing Inline Parameters and External Sources](#mixing-inline-parameters-and-external-sources)
   - [Test Fixtures](#test-fixtures)
+  - [Waiting for Conditions](#waiting-for-conditions)
 - [License](#license)
 
 ## Features
@@ -225,6 +226,38 @@ mod my_tests {
   }
 }
 ```
+
+### Waiting for Conditions
+
+The `wait_for!` macro allows you to poll for a condition until it's met or a timeout occurs. This is particularly useful for integration tests or when dealing with asynchronous processes.
+
+```rust
+use rust_test_framework::wait_for;
+use std::time::Duration;
+
+#[test]
+fn test_async_behavior() {
+    let result = wait_for!(
+        || {
+            // Your condition logic here
+            // Return Some(value) if condition is met, None otherwise
+            if some_async_check() {
+                Some("success")
+            } else {
+                None
+            }
+        },
+        Duration::from_secs(5),    // Timeout
+        Duration::from_millis(500), // Poll interval
+        "Condition was not met in time"
+    );
+
+    assert_eq!(result, "success");
+}
+```
+
+If the timeout is reached, it panics with a detailed message:
+`Timed out after 5.001s (10 checks, poll interval: 500ms): Condition was not met in time`
 
 ## License
 
