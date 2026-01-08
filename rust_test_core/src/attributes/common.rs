@@ -1,7 +1,61 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
 use serde_json::Value;
+use std::path::{Path, PathBuf};
+use syn::spanned::Spanned;
 use syn::{Expr, ItemFn, Lit, Type};
+
+fn is_path_type(ty: &Type) -> bool {
+    let check_path = |path: &syn::Path| {
+        path.segments.last().map_or(false, |s| {
+            let name = s.ident.to_string();
+            name == "Path" || name == "PathBuf"
+        })
+    };
+
+    match ty {
+        Type::Path(type_path) => check_path(&type_path.path),
+        Type::Reference(type_ref) => {
+            if let Type::Path(type_path) = &*type_ref.elem {
+                check_path(&type_path.path)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+fn resolve_path(path_str: &str) -> Option<PathBuf> {
+    let path = Path::new(path_str);
+    if path.exists() {
+        return Some(path.to_path_buf());
+    }
+
+    // Try relative to CARGO_MANIFEST_DIR if it's set
+    if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+        let full_path = Path::new(&manifest_dir).join(path);
+        if full_path.exists() {
+            return Some(full_path);
+        }
+    }
+
+    None
+}
+
+#[derive(Clone)]
+pub struct ValueWithSpan {
+    pub value: Value,
+    pub span: Span,
+}
+
+pub fn expr_to_value_with_span(expr: &Expr) -> syn::Result<ValueWithSpan> {
+    let value = expr_to_value(expr)?;
+    Ok(ValueWithSpan {
+        value,
+        span: expr.span(),
+    })
+}
 
 pub fn expr_to_value(expr: &Expr) -> syn::Result<Value> {
     match expr {
@@ -174,7 +228,7 @@ pub fn value_to_suffix(value: &Value) -> String {
 
 pub fn generate_test_set(
     mut input_fn: ItemFn,
-    json_array: Vec<Value>,
+    json_array: Vec<ValueWithSpan>,
     fn_name: Ident,
     type_name: Option<Type>,
 ) -> syn::Result<TokenStream> {
@@ -219,7 +273,25 @@ pub fn generate_test_set(
     };
 
     let test_functions = if json_array.len() == 1 {
-        let value = &json_array[0];
+        let value_with_span = &json_array[0];
+        let value = &value_with_span.value;
+
+        // Check for Path existence if applicable
+        if input_fn.sig.inputs.len() == 1 {
+            if let Some(syn::FnArg::Typed(pat_type)) = input_fn.sig.inputs.first() {
+                if is_path_type(&pat_type.ty) {
+                    if let Value::String(path_str) = value {
+                        if resolve_path(path_str).is_none() {
+                            return Err(syn::Error::new(
+                                value_with_span.span,
+                                format!("Path not found: {}", path_str),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
         generate_single_test(
             &real_fn_name,
             &impl_fn_name,
@@ -233,7 +305,24 @@ pub fn generate_test_set(
         let tests = json_array
             .into_iter()
             .enumerate()
-            .map(|(i, value)| {
+            .map(|(i, value_with_span)| {
+                let value = &value_with_span.value;
+                // Check for Path existence if applicable
+                if input_fn.sig.inputs.len() == 1 {
+                    if let Some(syn::FnArg::Typed(pat_type)) = input_fn.sig.inputs.first() {
+                        if is_path_type(&pat_type.ty) {
+                            if let Value::String(path_str) = &value {
+                                if resolve_path(path_str).is_none() {
+                                    return Err(syn::Error::new(
+                                        value_with_span.span,
+                                        format!("Path not found: {}", path_str),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+
                 generate_single_test(
                     &real_fn_name,
                     &impl_fn_name,

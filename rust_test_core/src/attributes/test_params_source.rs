@@ -1,13 +1,15 @@
 mod source_type;
 
 pub use crate::attributes::test_params_source::source_type::SourceType;
-use crate::attributes::common::{generate_test_set, parse_item_fn};
+use crate::attributes::common::{generate_test_set, parse_item_fn, ValueWithSpan};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use serde_json::Value;
+use syn::spanned::Spanned;
 use syn::{parse2, LitStr, Type};
 
 pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
+    let source_span = attr.span();
     let source: SourceType = parse2(attr).map_err(|e| {
         syn::Error::new(
             e.span(),
@@ -80,16 +82,54 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
                 // unless we do it here.
                 let all_are_arrays = array.iter().all(|v| v.is_array());
                 if all_are_arrays {
-                    generate_test_set(input_fn, array, fn_name, type_name_opt)?
+                    generate_test_set(
+                        input_fn,
+                        array
+                            .into_iter()
+                            .map(|v| ValueWithSpan {
+                                value: v,
+                                span: source_span,
+                            })
+                            .collect(),
+                        fn_name,
+                        type_name_opt,
+                    )?
                 } else {
                     // Treat the whole array as a single test case (single list)
-                    generate_test_set(input_fn, vec![Value::Array(array)], fn_name, type_name_opt)?
+                    generate_test_set(
+                        input_fn,
+                        vec![ValueWithSpan {
+                            value: Value::Array(array),
+                            span: source_span,
+                        }],
+                        fn_name,
+                        type_name_opt,
+                    )?
                 }
             } else {
-                generate_test_set(input_fn, array, fn_name, type_name_opt)?
+                generate_test_set(
+                    input_fn,
+                    array
+                        .into_iter()
+                        .map(|v| ValueWithSpan {
+                            value: v,
+                            span: source_span,
+                        })
+                        .collect(),
+                    fn_name,
+                    type_name_opt,
+                )?
             }
         }
-        Ok(single_value) => generate_test_set(input_fn, vec![single_value], fn_name, type_name_opt)?,
+        Ok(single_value) => generate_test_set(
+            input_fn,
+            vec![ValueWithSpan {
+                value: single_value,
+                span: source_span,
+            }],
+            fn_name,
+            type_name_opt,
+        )?,
         Err(e) => {
             return Err(syn::Error::new_spanned(
                 &file_path,

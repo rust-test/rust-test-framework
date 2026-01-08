@@ -1,0 +1,13 @@
+error: Path not found: non_existent_file.rs
+ --> tests/ui/path_not_found.rs:4:15
+  |
+4 | #[test_params("non_existent_file.rs")]
+  |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> tests/ui/path_not_found.rs:2:5
+  |
+2 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

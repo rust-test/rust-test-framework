@@ -1,4 +1,6 @@
-use crate::attributes::common::{expr_to_value, generate_test_set, parse_item_fn};
+use crate::attributes::common::{
+    expr_to_value_with_span, generate_test_set, parse_item_fn, ValueWithSpan,
+};
 use proc_macro2::TokenStream;
 use serde_json::Value;
 use syn::parse::{Parse, ParseStream};
@@ -22,10 +24,18 @@ pub fn test_params(_attr: TokenStream, item: TokenStream) -> syn::Result<TokenSt
                 ),
             ));
         }
-        vec![Value::Array(args.values)]
+        let span = args.values[0].span; // Use the first arg span for the array
+        vec![ValueWithSpan {
+            value: Value::Array(args.values.into_iter().map(|v| v.value).collect()),
+            span,
+        }]
     } else if arg_count == 1 {
         if args.values.len() > 1 {
-            vec![Value::Array(args.values)]
+            let span = args.values[0].span;
+            vec![ValueWithSpan {
+                value: Value::Array(args.values.into_iter().map(|v| v.value).collect()),
+                span,
+            }]
         } else {
             vec![args.values[0].clone()]
         }
@@ -40,7 +50,7 @@ pub fn test_params(_attr: TokenStream, item: TokenStream) -> syn::Result<TokenSt
 }
 
 struct TestCaseArgs {
-    values: Vec<Value>,
+    values: Vec<ValueWithSpan>,
 }
 
 impl Parse for TestCaseArgs {
@@ -49,21 +59,24 @@ impl Parse for TestCaseArgs {
         while !input.is_empty() {
             if input.peek(syn::token::Paren) {
                 let content;
-                syn::parenthesized!(content in input);
+                let paren_token = syn::parenthesized!(content in input);
                 let mut tuple_values = Vec::new();
                 while !content.is_empty() {
                     let expr: Expr = content.parse()?;
-                    tuple_values.push(expr_to_value(&expr)?);
+                    tuple_values.push(expr_to_value_with_span(&expr)?);
                     if content.peek(Token![,]) {
                         content.parse::<Token![,]>()?;
                     } else {
                         break;
                     }
                 }
-                values.push(Value::Array(tuple_values));
+                values.push(ValueWithSpan {
+                    value: Value::Array(tuple_values.into_iter().map(|v| v.value).collect()),
+                    span: paren_token.span.join(),
+                });
             } else {
                 let expr: Expr = input.parse()?;
-                values.push(expr_to_value(&expr)?);
+                values.push(expr_to_value_with_span(&expr)?);
             }
 
             if input.peek(Token![,]) {
