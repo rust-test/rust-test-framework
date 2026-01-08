@@ -8,10 +8,11 @@ use serde_json::Value;
 use syn::{parse2, LitStr, Type};
 use std::sync::LazyLock;
 
-static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
-    ureq::AgentBuilder::new()
+static CLIENT: LazyLock<reqwest::blocking::Client> = LazyLock::new(|| {
+    reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
+        .expect("Failed to create reqwest client")
 });
 
 pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
@@ -50,15 +51,23 @@ pub fn test_params_source(attr: TokenStream, item: TokenStream) -> syn::Result<T
         SourceType::JsonString(ref json_str, ref ty, _) => (json_str.value(), ty.clone(), None),
         SourceType::JsonResponse(ref url, ref ty, _) => {
             let url_value = url.value();
-            let content = AGENT.get(&url_value)
-                .call()
+            let response = CLIENT.get(&url_value)
+                .send()
                 .map_err(|e| {
                     syn::Error::new_spanned(
                         url,
                         format!("Could not fetch URL {}: {}", url_value, e),
                     )
-                })?
-                .into_string()
+                })?;
+            
+            if !response.status().is_success() {
+                return Err(syn::Error::new_spanned(
+                    url,
+                    format!("Could not fetch URL {}: status code {}", url_value, response.status()),
+                ));
+            }
+
+            let content = response.text()
                 .map_err(|e| {
                     syn::Error::new_spanned(
                         url,

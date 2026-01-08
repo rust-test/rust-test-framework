@@ -30,5 +30,5 @@ proc-macro2 = "1.0"
 trybuild = "1.0"
 thirtyfour = "0.36" # for example with driver
 glob = "0.3"
-ureq = "2.9"
+reqwest = { version = "0.13", features = ["blocking", "json"] }
 # schemars = "1.2.0" # for schema and config documentation and validation if needed
