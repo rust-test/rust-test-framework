@@ -45,7 +45,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-rust_test_framework = "0.1.3-alpha.1"
+rust_test_framework = "0.1.3-alpha.2"
 ```
 
 Example usage:
