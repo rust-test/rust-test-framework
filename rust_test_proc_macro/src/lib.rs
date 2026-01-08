@@ -42,6 +42,14 @@ pub fn test_params(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// fn test_age_is_higher_then_zero(item: User) {
 ///     assert!(item.age > 0);
 /// }
+///
+/// #[derive(Deserialize)]
+/// struct Post { id: u32 }
+///
+/// #[test_params_source(JsonResponse("https://jsonplaceholder.typicode.com/posts/1"))]
+/// fn test_remote_data(post: Post) {
+///     assert!(post.id > 0);
+/// }
 /// ```
 #[proc_macro_attribute]
 pub fn test_params_source(attr: TokenStream, item: TokenStream) -> TokenStream {

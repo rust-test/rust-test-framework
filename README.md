@@ -18,6 +18,7 @@ A data-driven testing framework for Rust.
   - [External Data Sources](#external-data-sources)
     - [SourceType::JsonFile](#sourcetypejsonfile)
     - [SourceType::JsonString](#sourcetypejsonstring)
+    - [SourceType::JsonResponse](#sourcetypejsonresponse)
     - [SourceType::PathMask](#sourcetypepathmask)
   - [Mixing Inline Parameters and External Sources](#mixing-inline-parameters-and-external-sources)
   - [Test Fixtures](#test-fixtures)
@@ -149,6 +150,26 @@ struct Config {
 #[test_params_source(JsonString(r#"{"enabled": true}"#))]
 fn test_config(cfg: Config) {
     assert!(cfg.enabled);
+}
+```
+
+#### SourceType::JsonResponse
+
+`JsonResponse` fetches JSON data from a remote URL.
+
+```rust
+use rust_test_framework::{test_params_source, SourceType};
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct Post {
+    id: u32,
+    title: String,
+}
+
+#[test_params_source(JsonResponse("https://jsonplaceholder.typicode.com/posts/1"))]
+fn test_json_response(post: Post) {
+    assert!(!post.title.is_empty());
 }
 ```
 
